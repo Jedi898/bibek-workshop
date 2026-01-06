@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for screenplay formatting */
+.prose p[data-type="scene-heading"] {
+  @apply text-center font-bold uppercase text-lg mb-4;
+}
+
+.prose p[data-type="action"] {
+  @apply text-left mb-2;
+}
+
+.prose p[data-type="character"] {
+  @apply text-center font-bold uppercase mb-1;
+}
+
+.prose p[data-type="parenthetical"] {
+  @apply text-center italic mb-1;
+}
+
+.prose p[data-type="dialogue"] {
+  @apply text-left mb-2 pl-16 pr-16;
+}
+
+.prose p[data-type="transition"] {
+  @apply text-right font-bold uppercase mb-4;
+}

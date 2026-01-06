@@ -1,0 +1,222 @@
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { ShootingDay, Scene, Contact, Location, WeatherData, ContinuityItem } from '@/types';
+
+export class PDFGenerator {
+  private doc: jsPDF;
+  
+  constructor() {
+    this.doc = new jsPDF();
+  }
+
+  async generateCallSheet(
+    shootingDay: ShootingDay,
+    scenes: Scene[],
+    contacts: Contact[],
+    location: Location,
+    weather?: WeatherData
+  ): Promise<Blob> {
+    this.doc.setFontSize(20);
+    this.doc.text('CALL SHEET', 20, 20);
+    
+    this.doc.setFontSize(12);
+    this.doc.text(`Date: ${new Date(shootingDay.date).toLocaleDateString()}`, 20, 40);
+    this.doc.text(`Production: [Production Name]`, 20, 50);
+    this.doc.text(`Director: [Director Name]`, 20, 60);
+    this.doc.text(`Weather: ${weather?.condition || 'N/A'}`, 20, 70);
+    
+    // Location Info
+    this.doc.setFontSize(14);
+    this.doc.text('LOCATION', 20, 90);
+    this.doc.setFontSize(12);
+    this.doc.text(`${location.name}`, 20, 100);
+    this.doc.text(`${location.address}`, 20, 110);
+    
+    // Schedule
+    this.doc.setFontSize(14);
+    this.doc.text('SCHEDULE', 20, 130);
+    
+    const scheduleData = [
+      ['Call Time', new Date(shootingDay.callTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })],
+      ['First Shot', '09:00'],
+      ['Lunch', '13:00 - 14:00'],
+      ['Dinner', '18:00 (if needed)'],
+      ['Wrap', new Date(shootingDay.wrapTime || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })]
+    ];
+    
+    autoTable(this.doc, {
+      startY: 140,
+      head: [['Time', 'Activity']],
+      body: scheduleData,
+      theme: 'grid',
+      styles: { fontSize: 10 }
+    });
+    
+    // Scenes
+    this.doc.setFontSize(14);
+    this.doc.text('SCENES', 20, this.doc.lastAutoTable.finalY + 10);
+    
+    const sceneData = shootingDay.scenes.map(sceneId => {
+      const scene = scenes.find(s => s.id === sceneId);
+      return [
+        scene?.sceneNumber || '',
+        scene?.title || '',
+        scene?.timeOfDay.toUpperCase() || '',
+        scene?.estimatedTime + 'min' || ''
+      ];
+    });
+    
+    autoTable(this.doc, {
+      startY: this.doc.lastAutoTable.finalY + 20,
+      head: [['Scene', 'Description', 'Time', 'Est. Time']],
+      body: sceneData,
+      theme: 'grid',
+      styles: { fontSize: 9 }
+    });
+    
+    // Cast & Crew
+    const cast = contacts.filter(c => c.type === 'cast' && shootingDay.crew.includes(c.id));
+    const crew = contacts.filter(c => c.type === 'crew' && shootingDay.crew.includes(c.id));
+    
+    this.doc.setFontSize(14);
+    this.doc.text('CAST', 20, this.doc.lastAutoTable.finalY + 10);
+    
+    const castData = cast.map(contact => [
+      contact.name,
+      contact.role || '',
+      contact.callTime || 'TBD'
+    ]);
+    
+    autoTable(this.doc, {
+      startY: this.doc.lastAutoTable.finalY + 20,
+      head: [['Name', 'Role', 'Call Time']],
+      body: castData,
+      theme: 'grid',
+      styles: { fontSize: 9 }
+    });
+    
+    this.doc.setFontSize(14);
+    this.doc.text('CREW', 20, this.doc.lastAutoTable.finalY + 10);
+    
+    const crewData = crew.map(contact => [
+      contact.name,
+      contact.department || '',
+      contact.role || ''
+    ]);
+    
+    autoTable(this.doc, {
+      startY: this.doc.lastAutoTable.finalY + 20,
+      head: [['Name', 'Department', 'Role']],
+      body: crewData,
+      theme: 'grid',
+      styles: { fontSize: 9 }
+    });
+    
+    // Notes
+    if (shootingDay.notes) {
+      this.doc.setFontSize(14);
+      this.doc.text('NOTES', 20, this.doc.lastAutoTable.finalY + 10);
+      this.doc.setFontSize(10);
+      const splitNotes = this.doc.splitTextToSize(shootingDay.notes, 170);
+      this.doc.text(splitNotes, 20, this.doc.lastAutoTable.finalY + 20);
+    }
+    
+    // Weather Info
+    if (weather) {
+      this.doc.setFontSize(14);
+      this.doc.text('WEATHER', 20, this.doc.lastAutoTable.finalY + 20);
+      this.doc.setFontSize(10);
+      
+      const weatherData = [
+        ['Temperature', `${weather.temperature}°C`],
+        ['Conditions', weather.condition],
+        ['Precipitation', `${weather.precipitation}%`],
+        ['Sunrise', new Date(weather.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })],
+        ['Sunset', new Date(weather.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })],
+        ['Golden Hour', `${new Date(weather.goldenHourAM).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} / ${new Date(weather.goldenHourPM).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`]
+      ];
+      
+      autoTable(this.doc, {
+        startY: this.doc.lastAutoTable.finalY + 30,
+        body: weatherData,
+        theme: 'grid',
+        styles: { fontSize: 9 }
+      });
+    }
+    
+    // Footer
+    this.doc.setFontSize(8);
+    this.doc.text('Generated by Pre-Production App', 20, this.doc.internal.pageSize.height - 10);
+    
+    return this.doc.output('blob');
+  }
+
+  async generateSceneBreakdownReport(scenes: Scene[]): Promise<Blob> {
+    this.doc.setFontSize(20);
+    this.doc.text('SCENE BREAKDOWN REPORT', 20, 20);
+    
+    const sceneData = scenes.map(scene => [
+      scene.sceneNumber.toString(),
+      scene.title,
+      scene.timeOfDay,
+      scene.interiorExterior,
+      scene.estimatedTime + 'min',
+      scene.characters.length.toString(),
+      scene.props.length.toString(),
+      scene.status
+    ]);
+    
+    autoTable(this.doc, {
+      startY: 40,
+      head: [['Scene', 'Title', 'Time', 'INT/EXT', 'Time', 'Cast', 'Props', 'Status']],
+      body: sceneData,
+      theme: 'grid',
+      styles: { fontSize: 9 }
+    });
+    
+    return this.doc.output('blob');
+  }
+
+  async generateContactList(contacts: Contact[], department?: string): Promise<Blob> {
+    this.doc.setFontSize(20);
+    this.doc.text(department ? `${department} CONTACT LIST` : 'CONTACT DIRECTORY', 20, 20);
+    
+    const contactData = contacts.map(contact => [
+      contact.name,
+      contact.role || '',
+      contact.department || '',
+      contact.type,
+      contact.email || '',
+      contact.phone || ''
+    ]);
+    
+    autoTable(this.doc, {
+      startY: 40,
+      head: [['Name', 'Role', 'Department', 'Type', 'Email', 'Phone']],
+      body: contactData,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 50 },
+        5: { cellWidth: 30 }
+      }
+    });
+    
+    return this.doc.output('blob');
+  }
+}
+
+export function downloadPDF(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
