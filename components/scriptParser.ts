@@ -62,7 +62,9 @@ export interface SceneBreakdown {
     estTime: string
     pageCount: string
     complexity: number // 1-5 stars
+    genre?: string
   }
+  aiHistory?: { timestamp: number; content: string; mood: string; isPinned?: boolean }[]
 }
 
 // Default dictionary for parsing (mirrors public/data/nepali_dictionary.json)
@@ -83,7 +85,13 @@ export const DEFAULT_DICTIONARY = {
   
   sound: ['SOUND', 'NOISE', 'CLICK', 'BANG', 'RING', 'FOOTSTEPS', 'SCREAM', 'CRY', 'WHISPER', 'BARK', 'आवाज', 'चिच्याउने', 'रुने', 'सुस्केरा', 'भुक्ने', 'घन्टी', 'शंख', 'सिठी', 'ताली', 'हाँसो'],
   music: ['MUSIC', 'SONG', 'SCORE', 'RADIO', 'SINGING', 'FLUTE', 'SARANGI', 'MADAL', 'संगीत', 'गीत', 'बाँसुरी', 'सारङ्गी', 'मादल', 'गितार', 'पियानो', 'हार्मोनियम', 'तबला', 'बाजा'],
-  ambience: ['WIND', 'RAIN', 'TRAFFIC', 'CROWD', 'SILENCE', 'BIRDS', 'CRICKETS', 'RIVER FLOW', 'VILLAGE', 'हावा', 'पानी', 'भीड', 'चरा', 'गाउँ', 'खोलाको आवाज', 'गाडीको आवाज', 'कुकुर भुकेको', 'चरा कराएको', 'सन्नाटा']
+  ambience: ['WIND', 'RAIN', 'TRAFFIC', 'CROWD', 'SILENCE', 'BIRDS', 'CRICKETS', 'RIVER FLOW', 'VILLAGE', 'हावा', 'पानी', 'भीड', 'चरा', 'गाउँ', 'खोलाको आवाज', 'गाडीको आवाज', 'कुकुर भुकेको', 'चरा कराएको', 'सन्नाटा'],
+  
+  // Genre Specific Keywords
+  mythological: ['SWORD', 'KING', 'QUEEN', 'PALACE', 'THRONE', 'CHARIOT', 'BOW', 'ARROW', 'DEMON', 'GOD', 'TEMPLE', 'राजा', 'रानी', 'दरबार', 'तरवार', 'धनुष', 'बाण', 'रथ', 'राक्षस', 'भगवान', 'मन्दिर', 'सिंहासन', 'युद्ध'],
+  village: ['HUT', 'FIELD', 'FARM', 'COW', 'GOAT', 'RIVER', 'WELL', 'MUD', 'FOREST', 'झुपडी', 'खेत', 'बारी', 'गाई', 'बाख्रा', 'कुवा', 'पँधेरो', 'चौतारी', 'भन्ज्याङ', 'उकालो', 'ओरालो'],
+  modern: ['OFFICE', 'COMPUTER', 'PHONE', 'CAR', 'CAFE', 'BUILDING', 'LAPTOP', 'INTERNET', 'अफिस', 'कम्प्युटर', 'मोबाइल', 'गाडी', 'क्याफे', 'भवन', 'सहर', 'बजार'],
+  action: ['GUN', 'BOMB', 'CHASE', 'FIGHT', 'POLICE', 'ARREST', 'KILL', 'BLOOD', 'बन्दुक', 'बम', 'प्रहरी', 'मारपिट', 'रगत', 'आक्रमण']
 }
 
 // Helper to get dynamic keywords from Training Center
@@ -98,6 +106,24 @@ const getSceneKeywordsPattern = (): string => {
   }
   const all = Array.from(new Set([...defaults, ...custom]));
   return all.sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+}
+
+// Helper to get known characters from Training Center
+const getKnownCharacters = (): string[] => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const saved = localStorage.getItem('app-training-grammar');
+      if (saved) {
+        const rules = JSON.parse(saved);
+        // Extract text from rules where category is 'character' or topic contains 'name'
+        return rules
+          .filter((r: any) => r.category === 'character' || /name|naam|नाम|पात्र/i.test(r.topic))
+          .flatMap((r: any) => r.text.split(/,\s*/))
+          .map((s: string) => s.trim());
+      }
+    } catch (e) {}
+  }
+  return [];
 }
 
 /**
@@ -297,7 +323,8 @@ export const parseScript = (scriptText: string): SceneBreakdown[] => {
         metadata: {
           estTime: '0 min',
           pageCount: '0',
-          complexity: 1
+          complexity: 1,
+          genre: 'Drama' // Default
         }
       }
       lastLineType = 'HEADING'
@@ -419,6 +446,23 @@ export const parseScript = (scriptText: string): SceneBreakdown[] => {
     if (scene.technical.camera.length > 2) complexityScore += 1
     if (scene.location.type === 'EXT.') complexityScore += 1
     scene.metadata.complexity = Math.min(5, complexityScore)
+
+    // Determine Genre based on keywords
+    const contentUpper = scene.content.toUpperCase();
+    let scores = { myth: 0, village: 0, modern: 0, action: 0 };
+    
+    DEFAULT_DICTIONARY.mythological.forEach(k => { if (contentUpper.includes(k)) scores.myth++; });
+    DEFAULT_DICTIONARY.village.forEach(k => { if (contentUpper.includes(k)) scores.village++; });
+    DEFAULT_DICTIONARY.modern.forEach(k => { if (contentUpper.includes(k)) scores.modern++; });
+    DEFAULT_DICTIONARY.action.forEach(k => { if (contentUpper.includes(k)) scores.action++; });
+
+    const maxScore = Math.max(scores.myth, scores.village, scores.modern, scores.action);
+    if (maxScore > 0) {
+      if (scores.myth === maxScore) scene.metadata.genre = 'Mythological/Historical';
+      else if (scores.action === maxScore) scene.metadata.genre = 'Action/Thriller';
+      else if (scores.village === maxScore) scene.metadata.genre = 'Rural/Village Drama';
+      else if (scores.modern === maxScore) scene.metadata.genre = 'Modern/Urban';
+    }
   })
 
   console.log(`Total scenes parsed: ${scenes.length}`)
@@ -439,8 +483,17 @@ function detectSceneHeading(line: string): boolean {
 function isCharacter(line: string): boolean {
   const trimmed = line.trim()
   if (trimmed.length === 0 || trimmed.length > 40) return false
+  
+  // Check against trained characters first
+  const knownChars = getKnownCharacters();
+  if (knownChars.some(name => trimmed === name || trimmed.startsWith(name + ' ('))) {
+    return true;
+  }
+
   const hasLower = /[a-z]/.test(trimmed)
   const hasNepali = /[\u0900-\u097F]/.test(trimmed)
+  
+  // Heuristics
   return (!hasLower && /[A-Z]/.test(trimmed)) || (hasNepali && trimmed.length < 20)
 }
 

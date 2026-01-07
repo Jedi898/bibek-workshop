@@ -194,7 +194,7 @@ It's raining heavily.
   return (
     <div className="p-6 text-white h-full overflow-y-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">{t('Scene Breakdown')}</h2>
+        <h2 className="text-2xl font-bold text-black">{t('Scene Breakdown')}</h2>
         <div className="flex gap-3">
           <button
             onClick={() => testWithSampleScript()}

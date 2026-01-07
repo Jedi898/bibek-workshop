@@ -25,7 +25,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   ]
 
   return (
-    <div className="w-64 bg-white text-gray-800 h-screen fixed left-0 top-0 flex flex-col border-r border-gray-200">
+    <div className="w-64 bg-film-black text-film-gold h-screen fixed left-0 top-0 flex flex-col border-r border-film-gray">
       <div className="p-4 flex-1 overflow-y-auto">
         <h1 className="text-xl font-bold mb-8">{t('Screenwriting App')}</h1>
         <nav>
@@ -37,8 +37,8 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
                   onClick={() => onTabChange(tab.id)}
                   className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center ${
                     activeTab === tab.id
-                      ? 'bg-indigo-100 text-indigo-700 font-semibold'
-                      : 'hover:bg-gray-100 text-gray-600'
+                      ? 'bg-film-gold text-film-black font-semibold'
+                      : 'hover:bg-film-gray text-film-gold'
                   }`}
                 >
                   <span className="mr-3 text-lg">{tab.icon}</span>
@@ -53,7 +53,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
         <button
           onClick={() => setIsNepaliTyping(!isNepaliTyping)}
           className={`w-full py-2 px-4 rounded transition-colors flex items-center justify-center gap-2 ${
-            isNepaliTyping ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            isNepaliTyping ? 'bg-film-gold text-film-black' : 'bg-film-gray text-film-gold hover:bg-film-gray-light'
           }`}
         >
           <span>⌨️</span>

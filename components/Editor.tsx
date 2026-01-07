@@ -435,7 +435,7 @@ const Editor = () => {
         }
       `}</style>
       <div className="flex justify-between items-center p-3 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-xl font-bold">{t('Script Editor')}</h2>
+        <h2 className="text-xl font-bold text-black">{t('Script Editor')}</h2>
         <div className="flex gap-2">
           <button
             onClick={() => {

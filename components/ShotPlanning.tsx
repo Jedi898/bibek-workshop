@@ -57,32 +57,100 @@ const ShotPlanning = () => {
   const [customSceneKeywords, setCustomSceneKeywords] = useState<string[]>([
     'INT', 'EXT', 'I/E', 'INT/EXT', 'आ', 'बा', 'आ/बा', 'आन्तरिक', 'बाहिर'
   ])
-  const [newRule, setNewRule] = useState({ category: 'word', topic: '', text: '' })
+  // Default category to 'character' to encourage adding names
+  const [newRule, setNewRule] = useState({ category: 'character', topic: '', text: '' })
   const [newKeyword, setNewKeyword] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
 
   // Algorithm: Basic Nepali NLP Rule-Based Parser
   // "Trains" the app to understand specific Nepali grammatical markers
   const extractNepaliContext = (text: string) => {
-    const tokens = text.split(/\s+|[।?!,]/).filter(t => t.length > 0);
     const context = {
       potentialCharacters: new Set<string>(),
       potentialLocations: new Set<string>(),
       keyActions: new Set<string>()
     };
 
+    // 1. Standard Script Format Detection (English/Romanized & Nepali)
+    const lines = text.split('\n');
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      
+      // Detect script language features
+      const hasDevanagari = /[\u0900-\u097F]/.test(trimmed);
+      // Improved Scene Heading: Matches INT., EXT., INT/EXT, or Nepali equivalents followed by space or dot
+      const isSceneHeading = /^(INT[\.\s]|EXT[\.\s]|I\/E|INT\/EXT|दृश्य[\s\.]|स्थान[\s\.])/i.test(trimmed);
+      const isTransition = /^(CUT TO|FADE|DISSOLVE|अन्त|काट्ने|क्रमश|पटाक्षेप)/i.test(trimmed);
+      
+      if (isSceneHeading || isTransition) return;
+
+      // Pattern A: "Name: Dialogue" format (Common in transcripts)
+      // Matches "Name:" at start of line. Supports English and Devanagari names.
+      const colonMatch = trimmed.match(/^([A-Z\u0900-\u097F][a-zA-Z\u0900-\u097F\s\(\)\.]+):/);
+      if (colonMatch) {
+         const name = colonMatch[1].replace(/\s*\(.*?\)\s*/g, '').trim();
+         if (name.length > 1 && name.length < 40) {
+            context.potentialCharacters.add(name);
+            return;
+         }
+      }
+
+      // Pattern B: Character Cue (Line above dialogue)
+      let isCharacterCue = false;
+
+      if (hasDevanagari) {
+        // Nepali: Short line, no sentence-ending punctuation, not a parenthetical
+        const endsWithPunctuation = /[।?!]$/.test(trimmed);
+        const isParenthetical = /^\(.*\)$/.test(trimmed);
+        if (trimmed.length < 40 && !endsWithPunctuation && !isParenthetical) {
+           isCharacterCue = true;
+        }
+      } else {
+        // English: All Uppercase, contains letters
+        if (trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed) && trimmed.length < 40) {
+           isCharacterCue = true;
+        }
+      }
+
+      if (isCharacterCue) {
+        const name = trimmed.replace(/\s*\(.*?\)\s*/g, '').trim();
+        const ignoreList = ['CONTINUED', 'MORE', 'CONT\'D', 'काट्ने', 'क्रमश'];
+        if (name.length > 1 && !ignoreList.includes(name)) {
+           context.potentialCharacters.add(name);
+        }
+      }
+    });
+
+    // 2. Token-based Analysis (Nepali Grammar & Training Data)
+    const tokens = text.split(/\s+|[।?!,]/).filter(t => t.length > 0);
+
     // Extract knowledge from the dynamic "Training Set"
     const knownPronouns = grammarRules.find(d => d.topic === "सर्वनाम उदाहरण")?.text.split(/,\s*/) || [];
     const knownVerbs = grammarRules.find(d => d.topic === "क्रिया उदाहरण")?.text.split(/,\s*/) || [];
     const knownNouns = grammarRules.find(d => d.topic === "नाम उदाहरण")?.text.split(/,\s*/) || [];
+    // Explicitly trained characters
+    const trainedCharacters = grammarRules.filter(r => r.category === 'character').map(r => r.topic);
 
     tokens.forEach((word, index) => {
+      // Clean word of quotes/brackets
+      const cleanWord = word.replace(/^['"\(]+|['"\)]+$/g, '');
+      if (!cleanWord) return;
+
       // Heuristic 1: 'ले' (le) often marks the subject/agent in Nepali
-      if (word.endsWith('ले') && word.length > 2) {
-        context.potentialCharacters.add(word.slice(0, -2));
+      if (cleanWord.endsWith('ले') && cleanWord.length > 2) {
+        const root = cleanWord.slice(0, -2);
+        // Filter out common pronouns/words if needed
+        if (!['अहिले', 'जसले', 'त्यसले', 'कसले', 'यसले', 'मैले', 'तैंले'].includes(cleanWord)) {
+          context.potentialCharacters.add(root);
+        }
       }
       // Heuristic 2: 'लाई' (lai) marks the object/receiver
-      if (word.endsWith('लाई') && word.length > 3) {
-        context.potentialCharacters.add(word.slice(0, -3));
+      if (cleanWord.endsWith('लाई') && cleanWord.length > 3) {
+        const root = cleanWord.slice(0, -3);
+        if (!['मलाई', 'हामीलाई', 'तिमीलाई', 'यसलाई', 'त्यसलाई'].includes(cleanWord)) {
+          context.potentialCharacters.add(root);
+        }
       }
       // Heuristic 3: 'मा' (ma) often marks location
       if (word.endsWith('मा') && word.length > 2) {
@@ -94,8 +162,8 @@ const ShotPlanning = () => {
          // Pronouns are often subjects in scripts
          context.potentialCharacters.add(word);
       }
-      if (knownNouns.includes(word)) {
-         // Known nouns from training set
+      if (knownNouns.includes(word) || trainedCharacters.includes(word)) {
+         // Known nouns/characters from training set
          context.potentialCharacters.add(word);
       }
       // Simple fuzzy match for verbs (since they conjugate)
@@ -126,9 +194,19 @@ const ShotPlanning = () => {
 
   const selectedScene = scenes.find(s => s.id === selectedSceneId)
 
+  // Reset AI state when switching scenes to prevent character leakage
+  useEffect(() => {
+    setAiCharacters('')
+    setAiMood('')
+    setAiOutput(null)
+  }, [selectedSceneId])
+
   useEffect(() => {
     if (showAiPanel && aiOutputRef.current && aiOutput) {
-      aiOutputRef.current.innerHTML = aiOutput
+      // Clean up markdown code blocks if AI adds them despite instructions
+      // Remove any markdown code block markers globally
+      const cleanHtml = aiOutput.replace(/```html/g, '').replace(/```/g, '')
+      aiOutputRef.current.innerHTML = cleanHtml
     }
   }, [showAiPanel, aiOutput])
 
@@ -197,7 +275,7 @@ const ShotPlanning = () => {
     setScenes(updatedScenes)
   }
 
-  const handleGenerateAi = async () => {
+  const handleGenerateAi = async (isRegeneration: boolean = false) => {
     if (!selectedScene) return
     
     // Allow generation even if fields are empty - let AI infer from script
@@ -208,6 +286,7 @@ const ShotPlanning = () => {
 
     setIsGenerating(true)
     setAiOutput(null)
+    setAiOutput('') // Initialize with empty string for streaming
     
     try {
       // ---------------------------------------------------------
@@ -223,46 +302,135 @@ const ShotPlanning = () => {
         userCharacters: aiCharacters, // Optional override
         technicalConstraints: selectedScene.technical,
         nepaliGrammarAnalysis: nlpAnalysis, // Feeding the "trained" logic to the AI
-        grammarKnowledgeBase: grammarRules // Injecting the full dataset for context
+        grammarKnowledgeBase: grammarRules, // Injecting the full dataset for context
+        isRegeneration
       }
 
-      console.log("Sending to AI Agent:", promptPayload)
+      const response = await fetch('/api/generate-shots', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(promptPayload),
+      })
 
-      // SIMULATION OF API CALL
-      // const response = await fetch('/api/generate-shots', { method: 'POST', body: JSON.stringify(promptPayload) })
-      // const data = await response.json()
-      
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Mocking a smarter response that references the actual input
-      const inferredMood = aiMood || "Dramatic/Intense"
-      const inferredChars = aiCharacters || "the characters"
+      if (!response.ok) {
+        throw new Error('Failed to generate shots')
+      }
 
-      const mockResult = `
-        <div class="space-y-3 text-gray-200">
-          <div>
-            <h4 class="font-bold text-blue-400">AI Analysis: ${inferredMood}</h4>
-            <p class="text-xs text-gray-400 mb-2">Based on the script action...</p>
-            <ul class="list-disc pl-5 mt-1 space-y-1">
-              <li><strong>Master Shot:</strong> Wide shot establishing ${inferredChars} in ${selectedScene.location.name}.</li>
-              <li><strong>Psychological Angle:</strong> Use a <em>Dutch Angle</em> to reflect the ${inferredMood.toLowerCase()} tension found in the dialogue.</li>
-            </ul>
-          </div>
-          <div>
-            <h4 class="font-bold text-blue-400">Suggested Shot List</h4>
-            <ul class="list-disc pl-5 mt-1 space-y-1">
-              <li><strong>1. Medium Close-Up:</strong> Focus on reaction during the revelation.</li>
-              <li><strong>2. Slow Push-In:</strong> To emphasize the internal conflict described in the scene.</li>
-            </ul>
-          </div>
-        </div>
-      `
-      setAiOutput(mockResult)
+      if (!response.body) throw new Error('No response body')
+
+      // Handle Streaming Response
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let done = false
+      let generatedContent = ''
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        const chunkValue = decoder.decode(value, { stream: true })
+        generatedContent += chunkValue
+        setAiOutput((prev) => (prev || '') + chunkValue)
+      }
+
+      // Save to history
+      setScenes(prevScenes => {
+        const currentScene = prevScenes.find(s => s.id === selectedScene.id)
+        if (!currentScene) return prevScenes
+        
+        if (!generatedContent || generatedContent.trim().length === 0) return prevScenes
+
+        // Clean content for history as well
+        const cleanContent = generatedContent.replace(/```html/g, '').replace(/```/g, '')
+
+        const newHistoryItem = {
+          timestamp: Date.now(),
+          content: cleanContent,
+          mood: aiMood || t('Auto'),
+          isPinned: false,
+        }
+        
+        let updatedHistory = [newHistoryItem, ...(currentScene.aiHistory || [])]
+        
+        // Re-sort to keep pinned items at top
+        updatedHistory.sort((a, b) => {
+          const pinA = !!a.isPinned
+          const pinB = !!b.isPinned
+          if (pinA === pinB) return b.timestamp - a.timestamp
+          return pinA ? -1 : 1
+        })
+        
+        const updatedScene = {
+          ...currentScene,
+          aiHistory: updatedHistory
+        }
+        
+        return updateScene(prevScenes, updatedScene)
+      })
     } catch (error) {
       console.error(error)
       alert(t('Error generating shots'))
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const handleApplyAiShots = () => {
+    if (!aiOutput || !selectedScene) return
+
+    const cleanHtml = aiOutput.replace(/```html/g, '').replace(/```/g, '')
+    const parser = new DOMParser() 
+    const doc = parser.parseFromString(cleanHtml, 'text/html')
+    
+    // Find all list items in the output
+    const listItems = doc.querySelectorAll('li')
+    const newShots: Shot[] = []
+    let nextShotNumber = (selectedScene.shotList?.length || 0) + 1
+
+    listItems.forEach((li) => {
+      // Try to find strong tag, or fallback to text parsing
+      const strong = li.querySelector('strong') || li.querySelector('b')
+      let header = ''
+      let description = ''
+
+      if (strong) {
+        header = strong.innerText.replace(/:$/, '').trim()
+        description = li.innerText.replace(strong.innerText, '').trim().replace(/^[:\s]+/, '')
+      } else {
+        // Fallback: Try splitting by colon
+        const text = li.innerText
+        const parts = text.split(':')
+        if (parts.length > 1) {
+          header = parts[0].trim()
+          description = parts.slice(1).join(':').trim()
+        }
+      }
+
+      if (header) {
+        // Expected format: "SIZE | ANGLE | MOVEMENT" inside <strong>
+        
+        const parts = header.split('|').map(s => s.trim())
+        
+        newShots.push({
+          id: Math.random().toString(36).substr(2, 9),
+          number: nextShotNumber++,
+          size: parts[0] ? parts[0].toUpperCase() : 'WIDE',
+          angle: parts[1] ? parts[1].toUpperCase() : 'EYE-LEVEL',
+          movement: parts[2] ? parts[2].toUpperCase() : 'STATIC',
+          equipment: 'TRIPOD',
+          description: description,
+          subject: '' 
+        })
+      }
+    })
+
+    if (newShots.length > 0) {
+      const updatedScene = { ...selectedScene, shotList: [...(selectedScene.shotList || []), ...newShots] }
+      setScenes(updateScene(scenes, updatedScene))
+      alert(t(`Added ${newShots.length} shots to the list.`))
+    } else {
+      alert(t('Could not parse any shots. Ensure the AI finished generating.'))
     }
   }
 
@@ -293,7 +461,7 @@ const ShotPlanning = () => {
     const updated = [...grammarRules, { id: Date.now(), ...newRule }]
     setGrammarRules(updated)
     localStorage.setItem('app-training-grammar', JSON.stringify(updated))
-    setNewRule({ category: 'word', topic: '', text: '' })
+    setNewRule({ category: 'character', topic: '', text: '' })
   }
 
   const handleAddKeyword = () => {
@@ -304,6 +472,74 @@ const ShotPlanning = () => {
     setNewKeyword('')
   }
 
+  const handleClearHistory = () => {
+    if (!selectedScene) return
+    if (window.confirm(t('Are you sure you want to clear the AI history for this scene?'))) {
+      const updatedScene = { ...selectedScene, aiHistory: [] }
+      const updatedScenes = updateScene(scenes, updatedScene)
+      setScenes(updatedScenes)
+      setShowHistory(false)
+    }
+  }
+
+  const handleTogglePin = (timestamp: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!selectedScene || !selectedScene.aiHistory) return
+
+    const updatedHistory = selectedScene.aiHistory.map(item => 
+      item.timestamp === timestamp ? { ...item, isPinned: !item.isPinned } : item
+    )
+
+    updatedHistory.sort((a, b) => {
+      const pinA = !!a.isPinned
+      const pinB = !!b.isPinned
+      if (pinA === pinB) return b.timestamp - a.timestamp
+      return pinA ? -1 : 1
+    })
+
+    const updatedScene = { ...selectedScene, aiHistory: updatedHistory }
+    const updatedScenes = updateScene(scenes, updatedScene)
+    setScenes(updatedScenes)
+  }
+
+  const handleCopyToClipboard = () => {
+    if (aiOutputRef.current) {
+      navigator.clipboard.writeText(aiOutputRef.current.innerText)
+        .then(() => alert(t('Copied to clipboard')))
+        .catch(err => console.error('Failed to copy', err))
+    }
+  }
+
+  const handlePrintAiShots = () => {
+    if (!aiOutputRef.current) return
+    
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>AI Shot Ideas</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+            body { font-family: 'Noto Sans Devanagari', sans-serif; padding: 40px; color: #000; }
+            h4 { color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; }
+            ul { margin-bottom: 20px; }
+            li { margin-bottom: 8px; }
+            strong { color: #000; }
+          </style>
+        </head>
+        <body>
+          <h2>Shot Ideas: ${selectedScene?.heading || 'Scene'}</h2>
+          <div>${aiOutputRef.current.innerHTML}</div>
+        </body>
+      </html>
+    `
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+    setTimeout(() => { printWindow.focus(); printWindow.print(); }, 250)
+  }
 
   if (scenes.length === 0) {
     return (
@@ -335,6 +571,16 @@ const ShotPlanning = () => {
               <p className="text-xs text-gray-400">{t('Teach the app new words to improve context detection.')}</p>
               
               <div className="bg-gray-900 p-3 rounded border border-gray-700 space-y-2">
+                <select
+                  className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white"
+                  value={newRule.category}
+                  onChange={e => setNewRule({...newRule, category: e.target.value})}
+                >
+                  <option value="character">{t('Character Name')}</option>
+                  <option value="noun">{t('Noun (Object/Prop)')}</option>
+                  <option value="verb">{t('Verb (Action)')}</option>
+                  <option value="definition">{t('Definition/Rule')}</option>
+                </select>
                 <input 
                   className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white" 
                   placeholder={t('Topic (e.g., New Verbs)')}
@@ -353,6 +599,9 @@ const ShotPlanning = () => {
               <div className="h-64 overflow-y-auto space-y-2 pr-2">
                 {grammarRules.slice().reverse().map((rule: any) => (
                   <div key={rule.id} className="bg-gray-700/50 p-2 rounded text-sm border border-gray-600">
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500 uppercase">{rule.category}</span>
+                    </div>
                     <span className="text-blue-300 font-bold">{rule.topic}:</span> <span className="text-gray-300">{rule.text}</span>
                   </div>
                 ))}
@@ -416,10 +665,15 @@ const ShotPlanning = () => {
             {/* Header */}
             <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10">
               <div>
-                <h2 className="text-xl font-bold flex items-center gap-3">
+                <h2 className="text-xl font-bold text-black flex items-center gap-3">
                   <span className="bg-blue-600 text-xs px-2 py-1 rounded">{selectedScene.location.type}</span>
                   {selectedScene.location.name}
                   <span className="text-gray-400 text-sm font-normal">({selectedScene.time})</span>
+                  {selectedScene.metadata.genre && (
+                    <span className="ml-2 bg-gray-700 text-yellow-400 text-xs px-2 py-1 rounded border border-yellow-600/30">
+                      {selectedScene.metadata.genre}
+                    </span>
+                  )}
                 </h2>
                 <p className="text-xs text-gray-400 mt-1 truncate max-w-2xl">{selectedScene.summary || t('No summary available')}</p>
               </div>
@@ -470,28 +724,100 @@ const ShotPlanning = () => {
                     />
                   </div>
                   <button
-                    onClick={handleGenerateAi}
+                    onClick={() => handleGenerateAi(false)}
                     disabled={isGenerating}
                     className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm transition-colors flex items-center gap-2 h-[38px]"
                   >
                     {isGenerating ? t('Crawling...') : t('Generate Shots')}
                   </button>
+                  
+                  {/* History Dropdown */}
+                  {selectedScene.aiHistory && selectedScene.aiHistory.length > 0 && (
+                    <div className="relative ml-auto">
+                      <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded text-sm transition-colors flex items-center gap-2 h-[38px] border border-gray-600"
+                      >
+                        <span>🕒</span> {t('History')} ({selectedScene.aiHistory.length})
+                      </button>
+                      {showHistory && (
+                        <div className="absolute top-full right-0 mt-2 w-64 bg-gray-800 border border-gray-600 rounded shadow-xl z-20 max-h-60 overflow-y-auto">
+                          <div className="p-2 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+                            <button 
+                              onClick={handleClearHistory}
+                              className="w-full text-center text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20 py-1 rounded transition-colors"
+                            >
+                              {t('Clear History')}
+                            </button>
+                          </div>
+                          {selectedScene.aiHistory.map((item, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                setAiOutput(item.content || '')
+                                setAiMood(item.mood !== 'Auto' ? item.mood : '')
+                                setShowHistory(false)
+                              }}
+                              className="w-full text-left p-3 border-b border-gray-700 hover:bg-gray-700 text-xs text-gray-300 flex justify-between items-start cursor-pointer group"
+                            >
+                              <div className="flex-1 overflow-hidden">
+                                <div className="font-bold text-blue-400 mb-1">{new Date(item.timestamp).toLocaleString()}</div>
+                                <div className="truncate text-xs text-gray-300 mb-1">{item.mood}</div>
+                                <div className="truncate text-xs text-gray-500 italic">
+                                  {item.content ? item.content.replace(/<[^>]+>/g, ' ').trim().substring(0, 60) : ''}...
+                                </div>
+                              </div>
+                              <button onClick={(e) => handleTogglePin(item.timestamp, e)} className={`ml-2 p-1 rounded hover:bg-gray-600 ${item.isPinned ? 'text-yellow-400' : 'text-gray-600 hover:text-gray-400'}`} title={item.isPinned ? t('Unpin') : t('Pin')}>
+                                {item.isPinned ? '★' : '☆'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {aiOutput && (
+                {(aiOutput || isGenerating) && (
                   <div className="mt-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('Shot Ideas (Editable)')}</span>
-                      <button onClick={handleSaveToNotes} className="text-xs bg-orange-900/50 hover:bg-orange-800 text-orange-200 px-2 py-1 rounded transition-colors border border-orange-800">
-                        {t('Save to Notes')}
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleGenerateAi(true)}
+                          disabled={isGenerating}
+                          className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1 rounded transition-colors border border-gray-600"
+                        >
+                          ↻ {t('Regenerate')}
+                        </button>
+                        <button 
+                          onClick={handleCopyToClipboard}
+                          className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1 rounded transition-colors border border-gray-600"
+                        >
+                          📋 {t('Copy')}
+                        </button>
+                        <button 
+                          onClick={handlePrintAiShots}
+                          className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1 rounded transition-colors border border-gray-600"
+                        >
+                          🖨️ {t('Print')}
+                        </button>
+                        <button onClick={handleSaveToNotes} className="text-xs bg-orange-900/50 hover:bg-orange-800 text-orange-200 px-2 py-1 rounded transition-colors border border-orange-800">
+                          {t('Save to Notes')}
+                        </button>
+                        <button onClick={handleApplyAiShots} className="text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-200 px-2 py-1 rounded transition-colors border border-blue-800">
+                          {t('Add to Shot List')}
+                        </button>
+                      </div>
                     </div>
                     <div 
                       ref={aiOutputRef}
-                      className="p-4 bg-gray-900 rounded border border-gray-700 shadow-sm text-gray-200 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-text" 
+                      className="p-4 bg-gray-900 rounded border border-gray-700 shadow-sm text-gray-200 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-text whitespace-pre-wrap" 
                       contentEditable
                       suppressContentEditableWarning
                       onBlur={() => { if (aiOutputRef.current) setAiOutput(aiOutputRef.current.innerHTML) }}
-                    />
+                    >
+                      {isGenerating && !aiOutput && <span className="text-gray-500 italic">{t('Generating shot ideas...')}</span>}
+                    </div>
                   </div>
                 )}
               </div>
