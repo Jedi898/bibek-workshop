@@ -1,43 +1,112 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Contact } from '@/types'
+import { Contact } from '@/types' // Assuming this type is compatible with the DB schema
+import { useLanguage } from './LanguageContext'
+import { supabase } from '../lib/supabase'
 
-export default function Contacts() {
+interface ContactsProps {
+  projectId?: string;
+}
+
+export default function Contacts({ projectId }: ContactsProps) {
+  const { t } = useLanguage()
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [isLoaded, setIsLoaded] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '', role: '', email: '', phone: '', type: 'crew'
   })
 
   useEffect(() => {
-    const saved = localStorage.getItem('contactsState')
-    if (saved) setContacts(JSON.parse(saved))
-  }, [])
+    const fetchContacts = async () => {
+      if (!projectId) {
+        setContacts([])
+        setIsLoaded(true)
+        return
+      }
+      setIsLoaded(false)
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('project_id', projectId)
 
-  useEffect(() => {
-    localStorage.setItem('contactsState', JSON.stringify(contacts))
-  }, [contacts])
-
-  const handleAdd = () => {
-    if (!newContact.name) return
-    const contact: Contact = {
-      id: Date.now().toString(),
-      name: newContact.name!,
-      role: newContact.role,
-      email: newContact.email,
-      phone: newContact.phone,
-      type: newContact.type as any,
-      projectId: 'default',
-      availability: []
+      if (error) {
+        console.error('Error fetching contacts:', error)
+      } else if (data) {
+        setContacts(data as Contact[])
+      }
+      setIsLoaded(true)
     }
-    setContacts([...contacts, contact])
-    setNewContact({ name: '', role: '', email: '', phone: '', type: 'crew' })
-    setIsAdding(false)
+    fetchContacts()
+  }, [projectId])
+
+  const handleSave = async () => {
+    if (!newContact.name || !projectId) return
+    
+    if (editingId) {
+      const { error } = await supabase
+        .from('contacts')
+        .update({
+          name: newContact.name,
+          role: newContact.role,
+          email: newContact.email,
+          phone: newContact.phone,
+          type: newContact.type
+        })
+        .eq('id', editingId)
+
+      if (error) {
+        console.error('Error updating contact:', error)
+        alert('Failed to update contact.')
+      } else {
+        setContacts(contacts.map(c => c.id === editingId ? { ...c, ...newContact } as Contact : c))
+        setNewContact({ name: '', role: '', email: '', phone: '', type: 'crew' })
+        setIsAdding(false)
+        setEditingId(null)
+      }
+      return
+    }
+
+    const contactToSave = {
+      ...newContact,
+      project_id: projectId,
+      name: newContact.name!,
+    }
+
+    const { data, error } = await supabase
+      .from('contacts')
+      .insert(contactToSave)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error adding contact:', error)
+      alert('Failed to add contact.')
+    } else if (data) {
+      setContacts([...contacts, data as Contact])
+      setNewContact({ name: '', role: '', email: '', phone: '', type: 'crew' })
+      setIsAdding(false)
+    }
   }
 
-  const handleDelete = (id: string) => {
-    setContacts(contacts.filter(c => c.id !== id))
+  const handleEdit = (contact: Contact) => {
+    setNewContact(contact)
+    setEditingId(contact.id)
+    setIsAdding(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm(t('Are you sure you want to delete this item?'))) {
+      const { error } = await supabase.from('contacts').delete().eq('id', id)
+      if (error) {
+        console.error('Error deleting contact:', error)
+        alert('Failed to delete contact.')
+      } else {
+        setContacts(contacts.filter(c => c.id !== id))
+      }
+    }
   }
 
   return (
@@ -48,7 +117,7 @@ export default function Contacts() {
           onClick={() => setIsAdding(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
-          Add Contact
+          {t('Add Contact')}
         </button>
       </div>
 
@@ -90,8 +159,12 @@ export default function Contacts() {
             </select>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={handleAdd} className="bg-green-600 text-white px-4 py-2 rounded">Save</button>
-            <button onClick={() => setIsAdding(false)} className="bg-gray-500 text-white px-4 py-2 rounded">Cancel</button>
+            <button onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded">{t('Save')}</button>
+            <button onClick={() => {
+              setIsAdding(false)
+              setEditingId(null)
+              setNewContact({ name: '', role: '', email: '', phone: '', type: 'crew' })
+            }} className="bg-gray-500 text-white px-4 py-2 rounded">{t('Cancel')}</button>
           </div>
         </div>
       )}
@@ -103,13 +176,16 @@ export default function Contacts() {
               <div>
                 <h3 className="font-bold text-lg">{contact.name}</h3>
                 <span className={`text-xs px-2 py-1 rounded-full ${
-                  contact.type === 'cast' ? 'bg-purple-100 text-purple-800' : 
+                  contact.type === 'cast' ? 'bg-purple-100 text-purple-800' :
                   contact.type === 'crew' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'
                 }`}>
-                  {contact.type.toUpperCase()}
+                  {(contact.type || 'unknown').toUpperCase()}
                 </span>
               </div>
-              <button onClick={() => handleDelete(contact.id)} className="text-red-400 hover:text-red-600">×</button>
+              <div className="flex gap-2">
+                <button onClick={() => handleEdit(contact)} className="text-blue-400 hover:text-blue-600" title="Edit">✎</button>
+                <button onClick={() => handleDelete(contact.id)} className="text-red-400 hover:text-red-600" title="Delete">×</button>
+              </div>
             </div>
             <div className="mt-3 space-y-1 text-sm text-gray-600">
               <p><strong>Role:</strong> {contact.role}</p>

@@ -1,41 +1,81 @@
 'use client'
 
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
-import { parseScript, SceneBreakdown as Scene, loadScenes, resetScenes, deleteScene } from './scriptParser'
+import { parseScript, SceneBreakdown as Scene } from './scriptParser'
 import { useLanguage } from './LanguageContext'
 import { extractDocxText } from './fileExtractors'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import { supabase } from '../lib/supabase'
 
-const SceneBreakdown = () => {
+interface SceneBreakdownProps {
+  projectId?: string
+  scenes?: Scene[]
+  characters?: any[]
+  locations?: any[]
+  onUpdateScene?: (id: string, data: any) => void
+}
+
+const SceneBreakdown = ({ projectId }: SceneBreakdownProps = {}) => {
   const { t } = useLanguage()
   const [scenes, setScenes] = useState<Scene[]>([])
   const [selectedScene, setSelectedScene] = useState<Scene | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [debugText, setDebugText] = useState<string>('')
   const [rawExtractedText, setRawExtractedText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [characterSearch, setCharacterSearch] = useState<string>('')
+  const [selectedSceneIds, setSelectedSceneIds] = useState<Set<string>>(new Set())
+  const [isGeneratingShots, setIsGeneratingShots] = useState(false)
   
   const txtInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
   const wordInputRef = useRef<HTMLInputElement>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   // Load saved scenes on mount to prevent data vanishing
   useEffect(() => {
-    const saved = loadScenes()
-    if (saved && saved.length > 0) {
-      setScenes(saved)
+    const fetchScenes = async () => {
+      if (!projectId) {
+        setScenes([])
+        return
+      }
+      setIsLoading(true)
+      const { data, error } = await supabase.from('scenes').select('*').eq('project_id', projectId)
+      
+      if (error) {
+        console.error('Error fetching scenes:', error)
+      } else if (data) {
+        // Sort scenes numerically by scene number
+        const sortedData = data.sort((a, b) => {
+          const aNum = parseFloat(a.scene_number) || 0
+          const bNum = parseFloat(b.scene_number) || 0
+          return aNum - bNum
+        })
+
+        setScenes(sortedData.map((scene: any) => ({
+          ...scene,
+          sceneNumber: scene.scene_number,
+          shotList: scene.shot_list,
+          aiHistory: scene.ai_history
+        })))
+      }
+      setIsLoading(false)
     }
-  }, [])
+    fetchScenes()
+  }, [projectId])
 
   // Analytics
   const analytics = useMemo(() => {
     if (scenes.length === 0) return null
-    
+
     const totalScenes = scenes.length
-    const totalPages = scenes.reduce((acc, s) => acc + parseFloat(s.metadata.pageCount || '0'), 0).toFixed(1)
-    const allChars = new Set(scenes.flatMap(s => s.logistics.characters))
-    const intScenes = scenes.filter(s => s.location.type === 'INT.').length
-    const extScenes = scenes.filter(s => s.location.type === 'EXT.').length
-    
+    const totalPages = scenes.reduce((acc, s) => acc + parseFloat(s.metadata?.pageCount || '0'), 0).toFixed(1)
+    const allChars = new Set(scenes.flatMap(s => s.logistics?.characters || []))
+    const intScenes = scenes.filter(s => s.location?.type === 'INT.').length
+    const extScenes = scenes.filter(s => s.location?.type === 'EXT.').length
+
     return {
       totalScenes,
       totalPages,
@@ -43,6 +83,110 @@ const SceneBreakdown = () => {
       intExtRatio: `${intScenes} / ${extScenes}`
     }
   }, [scenes])
+
+  // Filtered scenes based on character search
+  const filteredScenes = useMemo(() => {
+    if (!characterSearch.trim()) return scenes
+    const searchTerm = characterSearch.toLowerCase()
+    return scenes.filter(scene =>
+      scene.logistics.characters.some(char =>
+        char.toLowerCase().includes(searchTerm)
+      )
+    )
+  }, [scenes, characterSearch])
+
+  const toggleSceneSelection = (e: React.SyntheticEvent, sceneId: string) => {
+    e.stopPropagation()
+    const newSelected = new Set(selectedSceneIds)
+    if (newSelected.has(sceneId)) {
+      newSelected.delete(sceneId)
+    } else {
+      newSelected.add(sceneId)
+    }
+    setSelectedSceneIds(newSelected)
+  }
+
+  const handleSelectAll = () => {
+    if (selectedSceneIds.size === filteredScenes.length) {
+      setSelectedSceneIds(new Set())
+    } else {
+      setSelectedSceneIds(new Set(filteredScenes.map(s => s.id)))
+    }
+  }
+
+  // Export handler
+  const handleExportPDF = async () => {
+    if (filteredScenes.length === 0) {
+      alert(t('No scenes to export'))
+      return
+    }
+    
+    if (!resultsRef.current) return
+
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#1f2937', // Match the dark theme background
+        ignoreElements: (element) => {
+          if (selectedSceneIds.size === 0) return false
+          return element.classList.contains('scene-card') && !selectedSceneIds.has(element.getAttribute('data-scene-id') || '')
+        }
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm' })
+      const imgProps = pdf.getImageProperties(imgData)
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      pdf.save('scene-breakdown.pdf')
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert(t('Failed to export PDF'))
+    }
+  }
+
+  const handleGenerateShotList = async () => {
+    if (!selectedScene) return
+    setIsGeneratingShots(true)
+    try {
+      const response = await fetch('/api/generate-shots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sceneText: selectedScene.content,
+          directorNotes: `Mood: ${selectedScene.creative.mood || ''}. Visuals: ${selectedScene.creative.visuals.join(', ')}`,
+          model: 'thenaijapromptengineer/matsya-7b'
+        })
+      })
+
+      if (!response.ok) throw new Error('Failed to generate shots')
+      
+      const data = await response.json()
+      const shotList = data.shotList
+
+      // Update Supabase
+      const { error } = await supabase
+        .from('scenes')
+        .update({ shot_list: shotList })
+        .eq('id', selectedScene.id)
+
+      if (error) throw error
+
+      // Update local state
+      const updatedScene = { ...selectedScene, shotList }
+      setSelectedScene(updatedScene)
+      setScenes(scenes.map(s => s.id === selectedScene.id ? updatedScene : s))
+      
+    } catch (err) {
+      console.error(err)
+      alert('Error generating shot list')
+    } finally {
+      setIsGeneratingShots(false)
+    }
+  }
 
   const extractPdfWithOcr = async (file: File): Promise<string> => {
     // Load PDF.js from CDN
@@ -110,6 +254,12 @@ const SceneBreakdown = () => {
     setRawExtractedText(null)
     setDebugText('')
 
+    if (!projectId) {
+      setError(t('Please select a project first.'))
+      setIsProcessing(false)
+      return
+    }
+
     try {
       console.log("Processing file:", file.name, file.type)
       
@@ -130,7 +280,32 @@ const SceneBreakdown = () => {
           setRawExtractedText(rawText)
           setError(t("No scenes found. Check debug box below for extracted text."))
         } else {
-          setScenes(parsedScenes)
+          // Prepare scenes for insertion (remove temporary IDs from parser if needed, or let DB handle it)
+          // We assume the DB generates UUIDs, so we strip the parser's ID or map it to something else if needed.
+          // For now, we'll try to insert. If 'id' is a UUID in DB, we should omit it or generate a valid one.
+          const scenesToInsert = parsedScenes.map(({ id, sceneNumber, shotList, aiHistory, ...rest }) => ({
+            ...rest,
+            scene_number: sceneNumber,
+            project_id: projectId,
+            shot_list: shotList,
+            ai_history: aiHistory
+          }))
+
+          if (projectId) {
+            // Optional: Clear existing scenes for this project before importing new script?
+            // For now, let's append or we can delete first. Let's delete to replace.
+            await supabase.from('scenes').delete().eq('project_id', projectId)
+          }
+
+          const { data, error } = await supabase.from('scenes').insert(scenesToInsert).select()
+          
+          if (error) throw error
+          if (data) setScenes(data.map((scene: any) => ({
+            ...scene,
+            sceneNumber: scene.scene_number,
+            shotList: scene.shot_list,
+            aiHistory: scene.ai_history
+          })) as Scene[])
           setRawExtractedText(null)
         }
       }
@@ -142,7 +317,12 @@ const SceneBreakdown = () => {
     }
   }
 
-  const testWithSampleScript = () => {
+  const testWithSampleScript = async () => {
+    if (!projectId) {
+      setError(t('Please select a project first.'))
+      return
+    }
+
     const sampleScript = `1. INT. HOUSE - DAY
 
 John enters the room. He looks tired.
@@ -160,7 +340,27 @@ It's raining heavily.
     
     console.log("Testing with sample script")
     const parsed = parseScript(sampleScript)
-    setScenes(parsed)
+    
+    const scenesToInsert = parsed.map(({ id, sceneNumber, shotList, aiHistory, ...rest }) => ({
+      ...rest,
+      scene_number: sceneNumber,
+      project_id: projectId,
+      shot_list: shotList,
+      ai_history: aiHistory
+    }))
+
+    const { data, error } = await supabase.from('scenes').insert(scenesToInsert).select()
+    if (error) {
+      console.error('Error saving sample scenes:', error)
+      setError('Failed to save sample scenes')
+    } else if (data) {
+      setScenes(data.map((scene: any) => ({
+        ...scene,
+        sceneNumber: scene.scene_number,
+        shotList: scene.shot_list,
+        aiHistory: scene.ai_history
+      })) as Scene[])
+    }
     setRawExtractedText(null)
     setError(null)
   }
@@ -174,20 +374,27 @@ It's raining heavily.
     e.target.value = ''
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm(t('Are you sure you want to clear all scenes? This cannot be undone.'))) {
-      const empty = resetScenes()
-      setScenes(empty)
+      if (!projectId) return
+      
+      const { error } = await supabase.from('scenes').delete().eq('project_id', projectId)
+
+      if (!error) {
+        setScenes([])
+      }
       setRawExtractedText(null)
       setError(null)
     }
   }
 
-  const handleDeleteScene = (e: React.MouseEvent, sceneId: string) => {
+  const handleDeleteScene = async (e: React.MouseEvent, sceneId: string) => {
     e.stopPropagation() // Prevent opening the modal
     if (window.confirm(t('Delete this scene?'))) {
-      const updated = deleteScene(scenes, sceneId)
-      setScenes(updated)
+      const { error } = await supabase.from('scenes').delete().eq('id', sceneId)
+      if (!error) {
+        setScenes(scenes.filter(s => s.id !== sceneId))
+      }
     }
   }
 
@@ -266,6 +473,13 @@ It's raining heavily.
         </div>
       )}
 
+      {isLoading && !isProcessing && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          <span className="ml-3 text-gray-300">{t('Loading scenes...')}</span>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-900/50 border border-red-700 text-red-200 p-4 rounded-lg mb-6">
           {error}
@@ -294,17 +508,54 @@ It's raining heavily.
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {scenes.map((scene) => (
+      {/* Search and Export Controls */}
+      {scenes.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder={t('Search by character name...')}
+              value={characterSearch}
+              onChange={(e) => setCharacterSearch(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={handleSelectAll}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
+          >
+            {selectedSceneIds.size === filteredScenes.length && filteredScenes.length > 0 ? t('Deselect All') : t('Select All')}
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={filteredScenes.length === 0}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            <span>📄</span> {t('Export PDF')} {selectedSceneIds.size > 0 ? `(${selectedSceneIds.size})` : characterSearch ? `(${filteredScenes.length})` : ''}
+          </button>
+        </div>
+      )}
+
+      <div ref={resultsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredScenes.map((scene) => (
           <div
             key={scene.id}
+            data-scene-id={scene.id}
             onClick={() => setSelectedScene(scene)}
-            className="bg-gray-800 rounded-lg shadow-lg p-4 cursor-pointer hover:bg-gray-700 transition-all transform hover:-translate-y-1 border border-gray-700"
+            className="scene-card bg-gray-800 rounded-lg shadow-lg p-4 cursor-pointer hover:bg-gray-700 transition-all transform hover:-translate-y-1 border border-gray-700"
           >
             <div className="flex justify-between items-start mb-3">
-              <span className="bg-blue-900 text-blue-200 text-xs font-bold px-2 py-1 rounded">
-                {t('SCENE')} {scene.sceneNumber}
-              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedSceneIds.has(scene.id)}
+                  onChange={(e) => toggleSceneSelection(e, scene.id)}
+                  className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-700"
+                />
+                <span className="bg-blue-900 text-blue-200 text-xs font-bold px-2 py-1 rounded">
+                  {t('SCENE')} {scene.sceneNumber}
+                </span>
+              </div>
               <span className="text-gray-400 text-xs font-mono">{scene.time}</span>
               <div className="flex items-center gap-2">
                 <span className="text-gray-400 text-xs font-mono">{scene.time}</span>
@@ -317,21 +568,21 @@ It's raining heavily.
                 </button>
               </div>
             </div>
-            <h3 className="font-bold text-lg mb-3 leading-tight min-h-[3rem]">{scene.location.name}</h3>
+            <h3 className="font-bold text-lg mb-3 leading-tight min-h-[3rem]">{scene.location?.name || t('Unknown Location')}</h3>
             <div className="text-sm text-gray-400">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-gray-500 text-xs uppercase tracking-wider">{t('Characters')}</span>
-                <span className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">{scene.logistics.characters.length}</span>
+                <span className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">{scene.logistics?.characters?.length || 0}</span>
               </div>
               <p className="line-clamp-2 text-gray-500 text-xs">
-                {scene.logistics.characters.length > 0 ? scene.logistics.characters.join(', ') : t('No characters detected')}
+                {scene.logistics?.characters?.length ? scene.logistics.characters.join(', ') : t('No characters detected')}
               </p>
             </div>
           </div>
         ))}
       </div>
 
-      {scenes.length === 0 && !rawExtractedText && !isProcessing && !error && (
+      {scenes.length === 0 && !rawExtractedText && !isProcessing && !isLoading && !error && (
         <div className="flex flex-col items-center justify-center h-64 text-gray-500 border-2 border-dashed border-gray-700 rounded-lg">
           <p className="text-lg mb-2">{t('No script loaded')}</p>
           <p className="text-sm">{t('Upload a script file to see the breakdown')}</p>
@@ -377,11 +628,11 @@ It's raining heavily.
                   </h3>
                 </div>
                 <div className="flex gap-4 text-sm text-gray-400">
-                  <span className="flex items-center gap-1">📍 {selectedScene.location.name || 'Unknown Location'}</span>
+                  <span className="flex items-center gap-1">📍 {selectedScene.location?.name || 'Unknown Location'}</span>
                   <span className="flex items-center gap-1">🕒 {selectedScene.time || 'Unknown Time'}</span>
-                  <span className="flex items-center gap-1">⏱️ {selectedScene.metadata.estTime}</span>
+                  <span className="flex items-center gap-1">⏱️ {selectedScene.metadata?.estTime || '-'}</span>
                   <span className="flex items-center gap-1">
-                    ⭐ {t('Complexity')}: {selectedScene.metadata.complexity}/5
+                    ⭐ {t('Complexity')}: {selectedScene.metadata?.complexity || 0}/5
                   </span>
                 </div>
               </div>
@@ -468,6 +719,37 @@ It's raining heavily.
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Shot List Section */}
+              <div className="bg-gray-750 p-4 rounded border border-gray-700">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-sm font-bold text-gray-400">{t('Shot List')}</h4>
+                  <button
+                    onClick={handleGenerateShotList}
+                    disabled={isGeneratingShots}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isGeneratingShots ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <span>🎥</span> {selectedScene.shotList ? t('Regenerate Shots') : t('Generate Shots AI')}
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {selectedScene.shotList ? (
+                  <div className="text-sm text-gray-300 whitespace-pre-wrap bg-gray-800 p-3 rounded border border-gray-600">
+                    {typeof selectedScene.shotList === 'string' ? selectedScene.shotList : JSON.stringify(selectedScene.shotList, null, 2)}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">{t('No shot list generated yet.')}</p>
+                )}
               </div>
 
               {/* Script Content Section */}

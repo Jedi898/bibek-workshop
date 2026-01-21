@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import CharacterExtension from './extensions/CharacterExtension';
-import SceneNumberExtension from './extensions/SceneNumberExtension';
 import { Script, ScriptVersion } from '../types';
 import { saveScript, getScriptVersions, compareVersions } from '../lib/api/scripts';
 

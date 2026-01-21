@@ -24,7 +24,8 @@ export default function ShootingSchedule({
     maxHoursPerDay: 12,
     travelTimeBetweenLocations: 30, // minutes
     mustShootSequentially: false,
-    prioritizeLocationClusters: true
+    prioritizeLocationClusters: true,
+    targetDurationDays: 60
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedDay, setSelectedDay] = useState<ShootingDay | null>(null);
@@ -107,7 +108,7 @@ export default function ShootingSchedule({
         </div>
 
         {/* Constraints Editor */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Max Hours/Day
@@ -132,6 +133,17 @@ export default function ShootingSchedule({
               className="w-full border rounded px-3 py-2"
               min="0"
               max="240"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Target Days
+            </label>
+            <input
+              type="number"
+              value={constraints.targetDurationDays}
+              onChange={(e) => setConstraints({...constraints, targetDurationDays: parseInt(e.target.value)})}
+              className="w-full border rounded px-3 py-2"
             />
           </div>
           <div className="flex items-center">

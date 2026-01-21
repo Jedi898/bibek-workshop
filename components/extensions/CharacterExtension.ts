@@ -33,8 +33,8 @@ export default Extension.create<CharacterExtensionOptions>({
     return {
       name: {
         default: null,
-        parseHTML: element => element.getAttribute('data-character'),
-        renderHTML: attributes => {
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-character'),
+        renderHTML: (attributes: { name?: string | null }) => {
           if (!attributes.name) {
             return {};
           }
@@ -56,7 +56,7 @@ export default Extension.create<CharacterExtensionOptions>({
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, any> }) {
     return ['span', HTMLAttributes, 0];
   },
 });

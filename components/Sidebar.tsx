@@ -1,16 +1,22 @@
 'use client'
 
 import { useLanguage } from './LanguageContext'
+import { supabase } from '../lib/supabase'
 
 interface SidebarProps {
   activeTab: string
   onTabChange: (tab: string) => void
+  onCreateProject?: () => void
+  onDeleteProject?: () => void
+  projectName?: string
 }
 
-const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
+const Sidebar = ({ activeTab, onTabChange, onCreateProject, onDeleteProject, projectName }: SidebarProps) => {
   const { t, language, setLanguage, isNepaliTyping, setIsNepaliTyping, showVirtualKeyboard, setShowVirtualKeyboard } = useLanguage()
 
   const tabs = [
+    { id: 'projects', label: t('My Projects'), icon: '📁' },
+    { id: 'dashboard', label: t('Dashboard'), icon: '🏠' },
     { id: 'editor', label: t('Script Editor'), icon: '📝' },
     { id: 'scene-breakdown', label: t('Scene Breakdown'), icon: '🎬' },
     { id: 'characters', label: t('Characters'), icon: '👥' },
@@ -18,16 +24,36 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
     { id: 'contacts', label: t('Contacts'), icon: '📞' },
     { id: 'shot-planning', label: t('Shot Planning'), icon: '🎥' },
     { id: 'schedule', label: t('Schedule'), icon: '📅' },
+    { id: 'timeline', label: t('Timeline'), icon: '📊' },
     { id: 'budget', label: t('Budget'), icon: '💰' },
     { id: 'continuity', label: t('Continuity Sheet'), icon: '🎞️' },
     { id: 'notes', label: t('Notes'), icon: '📋' },
     { id: 'weather', label: t('Weather'), icon: '🌤️' },
   ]
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
+
   return (
     <div className="w-64 bg-film-black text-film-gold h-screen fixed left-0 top-0 flex flex-col border-r border-film-gray">
       <div className="p-4 flex-1 overflow-y-auto">
         <h1 className="text-xl font-bold mb-8">{t('Screenwriting App')}</h1>
+        {projectName && (
+          <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/10">
+            <div className="text-xs opacity-60 uppercase tracking-wider font-semibold mb-1">{t('Current Project')}</div>
+            <div className="font-medium truncate text-lg" title={projectName}>{projectName}</div>
+          </div>
+        )}
+        {onCreateProject && (
+          <button
+            onClick={onCreateProject}
+            className="w-full mb-6 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors flex items-center justify-center gap-2 font-medium"
+          >
+            <span>+</span> {t('Create New Project')}
+          </button>
+        )}
         <nav>
           <ul className="space-y-2">
             {tabs.map(tab => (
@@ -74,6 +100,20 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
         >
           <span>{language === 'en' ? '🇳🇵' : '🇺🇸'}</span>
           {language === 'en' ? 'नेपाली' : 'English'}
+        </button>
+        {onDeleteProject && activeTab !== 'projects' && (
+          <button
+            onClick={onDeleteProject}
+            className="w-full bg-red-100 hover:bg-red-200 text-red-700 py-2 px-4 rounded transition-colors flex items-center justify-center gap-2 mt-4"
+          >
+            <span>🗑️</span> {t('Delete Project')}
+          </button>
+        )}
+        <button
+          onClick={handleSignOut}
+          className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors flex items-center justify-center gap-2 mt-4"
+        >
+          Sign Out
         </button>
       </div>
     </div>

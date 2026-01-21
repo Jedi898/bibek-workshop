@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Contact } from '@/types';
+import { Contact } from '../types';
 
 interface ContactDirectoryProps {
   contacts: Contact[];
@@ -303,7 +303,7 @@ export default function ContactDirectory({
                   <div>
                     <div className="text-sm font-medium text-gray-700 mb-2">Availability:</div>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {selectedContact.availability.map((range, index) => (
+                      {(selectedContact.availability || []).map((range, index) => (
                         <div 
                           key={index} 
                           className={`p-2 rounded ${

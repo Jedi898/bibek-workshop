@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useLanguage } from './LanguageContext'
+import { supabase } from '../lib/supabase'
 
 interface ContinuityRow {
   id: string
@@ -14,7 +15,11 @@ interface ContinuityRow {
   remarks: string
 }
 
-const ContinuitySheet = () => {
+interface ContinuitySheetProps {
+  projectId?: string
+}
+
+const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
   const { t } = useLanguage()
   const [rows, setRows] = useState<ContinuityRow[]>([
     { id: '1', sceneNo: '', shot: '', take: '', soundNo: '', fileNo: '', description: '', remarks: '' }
@@ -23,6 +28,8 @@ const ContinuitySheet = () => {
   const [firstTakeTime, setFirstTakeTime] = useState('')
   const [packUpTime, setPackUpTime] = useState('')
   const [isLoaded, setIsLoaded] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'local' | 'saving'>('local')
+  const storageKey = projectId ? `continuity-sheet-${projectId}` : 'continuity-sheet'
 
   // History state for Undo/Redo
   const [history, setHistory] = useState<{
@@ -59,7 +66,7 @@ const ContinuitySheet = () => {
   }, [rows, date, firstTakeTime, packUpTime, history, currentStep])
 
   useEffect(() => {
-    const saved = localStorage.getItem('continuity-sheet')
+    const saved = localStorage.getItem(storageKey)
     if (saved) {
       const data = JSON.parse(saved)
       setRows(data.rows || [])
@@ -68,14 +75,33 @@ const ContinuitySheet = () => {
       setPackUpTime(data.packUpTime || '')
     }
     setIsLoaded(true)
-  }, [])
+  }, [storageKey])
 
   useEffect(() => {
     if (isLoaded) {
       const data = { rows, date, firstTakeTime, packUpTime }
-      localStorage.setItem('continuity-sheet', JSON.stringify(data))
+      localStorage.setItem(storageKey, JSON.stringify(data))
+      setSyncStatus('local')
+
+      if (projectId) {
+        const syncToCloud = async () => {
+          setSyncStatus('saving')
+          // Attempt to sync to Supabase if online
+          const { error } = await supabase.from('continuity_sheets').upsert({
+            project_id: projectId,
+            content: data,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'project_id' })
+          
+          if (!error) setSyncStatus('synced')
+          else setSyncStatus('local') // Fallback to local status on error
+        }
+        
+        const timeout = setTimeout(syncToCloud, 2000)
+        return () => clearTimeout(timeout)
+      }
     }
-  }, [rows, date, firstTakeTime, packUpTime, isLoaded])
+  }, [rows, date, firstTakeTime, packUpTime, isLoaded, storageKey, projectId])
 
   const handleChange = (id: string, field: keyof ContinuityRow, value: string) => {
     setRows(prev => prev.map(row => 
@@ -131,7 +157,7 @@ const ContinuitySheet = () => {
 
   const handleSave = () => {
     const data = { rows, date, firstTakeTime, packUpTime }
-    localStorage.setItem('continuity-sheet', JSON.stringify(data))
+    localStorage.setItem(storageKey, JSON.stringify(data))
     alert(t('Sheet saved successfully!'))
   }
 
@@ -141,7 +167,7 @@ const ContinuitySheet = () => {
       setDate('')
       setFirstTakeTime('')
       setPackUpTime('')
-      localStorage.removeItem('continuity-sheet')
+      localStorage.removeItem(storageKey)
     }
   }
 
@@ -226,7 +252,10 @@ const ContinuitySheet = () => {
   return (
     <div className="p-6 text-white h-full overflow-y-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">{t('Continuity Sheet')}</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold">{t('Continuity Sheet')}</h2>
+          <span className={`text-xs px-2 py-1 rounded ${syncStatus === 'synced' ? 'bg-green-900 text-green-100' : 'bg-yellow-900 text-yellow-100'}`}>{syncStatus === 'synced' ? 'Cloud Synced' : 'Offline / Local'}</span>
+        </div>
         <div className="space-x-4">
           <button
             onClick={handleUndo}

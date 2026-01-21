@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from './LanguageContext'
+import { supabase } from '../lib/supabase'
 
 interface Location {
   id: string
@@ -11,42 +12,117 @@ interface Location {
   permitStatus: string
 }
 
-const Locations = () => {
+interface LocationsProps {
+  projectId?: string
+}
+
+const Locations = ({ projectId }: LocationsProps = {}) => {
   const { t } = useLanguage()
   const [locations, setLocations] = useState<Location[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('locations')
-    if (saved) {
-      setLocations(JSON.parse(saved))
-    }
-    setIsLoaded(true)
-  }, [])
+    const fetchLocations = async () => {
+      if (!projectId) {
+        setLocations([])
+        setIsLoaded(true)
+        return
+      }
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('locations', JSON.stringify(locations))
-    }
-  }, [locations, isLoaded])
+      const { data, error } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true })
 
-  const addLocation = () => {
-    setLocations([...locations, {
-      id: Date.now().toString(),
-      name: '',
+      if (error) {
+        console.error('Error fetching locations:', error)
+      } else if (data) {
+        setLocations(data.map((loc: any) => ({
+          id: loc.id,
+          name: loc.name,
+          setting: loc.setting,
+          description: loc.description,
+          permitStatus: loc.permit_status
+        })))
+      }
+      setIsLoaded(true)
+    }
+    fetchLocations()
+  }, [projectId])
+
+  const addLocation = async () => {
+    if (!projectId) return
+
+    const newLocation = {
+      project_id: projectId,
+      name: 'New Location',
       setting: 'INT',
       description: '',
-      permitStatus: 'Not Required'
-    }])
+      permit_status: 'Not Required'
+    }
+
+    const { data, error } = await supabase
+      .from('locations')
+      .insert(newLocation)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error adding location:', error)
+      alert('Failed to add location')
+    } else if (data) {
+      setLocations([...locations, {
+        id: data.id,
+        name: data.name,
+        setting: data.setting,
+        description: data.description,
+        permitStatus: data.permit_status
+      }])
+    }
+  }
+
+  const persistLocation = async (location: Location) => {
+    if (!projectId) return
+
+    const { error } = await supabase
+      .from('locations')
+      .update({
+        name: location.name,
+        setting: location.setting,
+        description: location.description,
+        permit_status: location.permitStatus
+      })
+      .eq('id', location.id)
+
+    if (error) {
+      console.error('Error updating location:', error)
+    }
   }
 
   const updateLocation = (id: string, field: keyof Location, value: string) => {
-    setLocations(locations.map(loc => loc.id === id ? { ...loc, [field]: value } : loc))
+    const updatedLocations = locations.map(loc => loc.id === id ? { ...loc, [field]: value } : loc)
+    setLocations(updatedLocations)
+
+    // For select fields, save immediately as there is no blur event to rely on
+    if (field === 'setting' || field === 'permitStatus') {
+      const updatedLoc = updatedLocations.find(l => l.id === id)
+      if (updatedLoc) {
+        persistLocation(updatedLoc)
+      }
+    }
   }
 
-  const deleteLocation = (id: string) => {
+  const deleteLocation = async (id: string) => {
     if (window.confirm(t('Are you sure you want to delete this item?'))) {
-      setLocations(locations.filter(loc => loc.id !== id))
+      const { error } = await supabase.from('locations').delete().eq('id', id)
+      
+      if (error) {
+        console.error('Error deleting location:', error)
+        alert('Failed to delete location')
+      } else {
+        setLocations(locations.filter(loc => loc.id !== id))
+      }
     }
   }
 
@@ -76,7 +152,16 @@ const Locations = () => {
           <tbody>
             {locations.map((loc) => (
               <tr key={loc.id} className="border-b border-gray-700 hover:bg-gray-750">
-                <td className="p-2"><input type="text" value={loc.name} onChange={(e) => updateLocation(loc.id, 'name', e.target.value)} className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm uppercase" placeholder={t('Name')} /></td>
+                <td className="p-2">
+                  <input 
+                    type="text" 
+                    value={loc.name} 
+                    onChange={(e) => updateLocation(loc.id, 'name', e.target.value)} 
+                    onBlur={() => persistLocation(loc)}
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm uppercase" 
+                    placeholder={t('Name')} 
+                  />
+                </td>
                 <td className="p-2">
                   <select
                     value={loc.setting}
@@ -102,7 +187,16 @@ const Locations = () => {
                     <option value="Obtained">{t('Obtained')}</option>
                   </select>
                 </td>
-                <td className="p-2"><input type="text" value={loc.description} onChange={(e) => updateLocation(loc.id, 'description', e.target.value)} className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" placeholder={t('Description')} /></td>
+                <td className="p-2">
+                  <input 
+                    type="text" 
+                    value={loc.description} 
+                    onChange={(e) => updateLocation(loc.id, 'description', e.target.value)} 
+                    onBlur={() => persistLocation(loc)}
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" 
+                    placeholder={t('Description')} 
+                  />
+                </td>
                 <td className="p-2 text-center">
                   <button onClick={() => deleteLocation(loc.id)} className="text-gray-500 hover:text-red-500 transition-colors">×</button>
                 </td>

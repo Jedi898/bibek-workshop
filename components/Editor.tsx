@@ -4,6 +4,10 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useLanguage } from './LanguageContext'
 import { detectAndConvert } from '../lib/legacyFontConverter'
 import { cleanScriptText } from './scriptParser'
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
+import { useScriptStore } from '../lib/stores/scriptStore'
+import { supabase } from '../lib/supabase'
 
 const Editor = () => {
   const { t } = useLanguage()
@@ -19,19 +23,34 @@ const Editor = () => {
   const editorRef = useRef<HTMLDivElement>(null)
   const [showNotesSidebar, setShowNotesSidebar] = useState(false)
   const [savedShots, setSavedShots] = useState<{id: string, mood: string, characters: string, content: string, timestamp: number}[]>([])
+  const [isLoaded, setIsLoaded] = useState(false)
+  const { currentScript } = useScriptStore()
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
 
+  // Load script from Supabase when currentScript changes
   useEffect(() => {
-    const saved = localStorage.getItem('script-editor-content')
-    if (saved) {
-      setText(saved)
+    if (currentScript?.content) {
+      setText(currentScript.content)
     }
-  }, [])
+    setIsLoaded(true)
+  }, [currentScript])
 
+  // Auto-save to Supabase (Debounced)
   useEffect(() => {
-    localStorage.setItem('script-editor-content', text)
-    // When the main text is updated (e.g., by an import), clear any active filters.
-    setFilteredText(null);
-  }, [text]);
+    if (isLoaded && currentScript?.id) {
+      setSaveStatus('unsaved')
+      const saveToDb = async () => {
+        setSaveStatus('saving')
+        await supabase
+          .from('scripts')
+          .update({ content: text, updated_at: new Date().toISOString() })
+          .eq('id', currentScript.id)
+        setSaveStatus('saved')
+      }
+      const timeoutId = setTimeout(saveToDb, 2000) // Save after 2 seconds of inactivity
+      return () => clearTimeout(timeoutId)
+    }
+  }, [text, isLoaded, currentScript]);
 
   useEffect(() => {
     const savedNotes = localStorage.getItem('script-editor-notes')
@@ -106,7 +125,7 @@ const Editor = () => {
         const ocrPromise = Tesseract.recognize(
             imageData,
             'nep+eng', // Nepali and English language packs
-            { logger: m => {
+            { logger: (m: any) => {
                 if (m.status === 'recognizing text') {
                     const progress = (m.progress * 100).toFixed(0);
                     setProcessingStatus(`Processing Page ${i}/${pdf.numPages} (${progress}%)...`);
@@ -189,47 +208,124 @@ const Editor = () => {
     setText(detectAndConvert(text));
   };
 
-  const handleExportPDF = () => {
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
+  const handleExportPDF = async () => {
     const isFiltered = filteredText !== null
     const contentToExport = filteredText || text
-    const title = isFiltered ? `Character Report: ${searchQuery}` : 'Script Export'
+    const rawTitle = isFiltered ? `Search Report: ${searchQuery}` : 'Script Export'
+    // Sanitize title to prevent invalid filenames during save
+    const title = rawTitle.replace(/[^a-zA-Z0-9\s\-_]/g, '_')
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
-            @page { size: A4; margin: 25mm; }
-            body { 
-              font-family: 'Courier Prime', 'Courier New', 'Noto Sans Devanagari', monospace; 
-              font-size: 12pt; 
-              line-height: 1.2;
-              white-space: pre-wrap;
-              color: #000;
+    try {
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+
+      // Set font to support Unicode characters better
+      pdf.setFont('helvetica', 'normal')
+
+      // Add header if filtered
+      if (isFiltered) {
+        pdf.setFontSize(16)
+        pdf.setFont('helvetica', 'bold')
+        const headerLines = pdf.splitTextToSize(rawTitle, pdfWidth - 20)
+        pdf.text(headerLines, 10, 15)
+        pdf.setFontSize(12)
+        pdf.setFont('courier', 'normal')
+      }
+
+      // Convert HTML to plain text while preserving line breaks
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = contentToExport
+
+      // More robust text extraction that handles various HTML structures
+      const extractTextLines = (element: Element): string[] => {
+        const lines: string[] = []
+
+        // Handle text nodes directly
+        if (element.nodeType === Node.TEXT_NODE) {
+          const text = element.textContent?.trim()
+          if (text) {
+            lines.push(text)
+          }
+          return lines
+        }
+
+        // Handle element nodes
+        const childNodes = Array.from(element.childNodes)
+        let currentLine = ''
+
+        for (const node of childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent?.trim()
+            if (text) {
+              currentLine += text + ' '
             }
-            .scene-result { margin-bottom: 20px; break-inside: avoid; }
-            .report-header { text-align: center; margin-bottom: 30px; font-weight: bold; font-size: 14pt; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; }
-            hr { border-top: 1px dashed #ccc; margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          ${isFiltered ? `<div class="report-header">${title}</div>` : ''}
-          ${contentToExport}
-        </body>
-      </html>
-    `
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
-    
-    setTimeout(() => {
-      printWindow.focus()
-      printWindow.print()
-    }, 250)
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as Element
+
+            // If it's a block element or br, start new line
+            if (el.tagName === 'BR' || getComputedStyle(el).display === 'block' ||
+                ['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(el.tagName)) {
+              if (currentLine.trim()) {
+                lines.push(currentLine.trim())
+                currentLine = ''
+              }
+              // Recursively extract from child elements
+              lines.push(...extractTextLines(el))
+            } else {
+              // Inline elements - extract text and continue current line
+              const childLines = extractTextLines(el)
+              if (childLines.length > 0) {
+                currentLine += childLines.join(' ') + ' '
+              }
+            }
+          }
+        }
+
+        // Add remaining line if any
+        if (currentLine.trim()) {
+          lines.push(currentLine.trim())
+        }
+
+        return lines
+      }
+
+      const lines = extractTextLines(tempDiv).filter(line => line.trim())
+
+      // Debug: Log the extracted lines to console
+      console.log('Extracted lines for PDF:', lines.slice(0, 10))
+      console.log('First 10 lines content:', lines.slice(0, 10).join('\n'))
+      console.log('HTML content being processed:', contentToExport.substring(0, 500))
+
+      // Split lines into pages
+      const maxLinesPerPage = 45 // Approximate lines per page for better fit
+      const pages: string[] = []
+
+      for (let i = 0; i < lines.length; i += maxLinesPerPage) {
+        pages.push(lines.slice(i, i + maxLinesPerPage).join('\n'))
+      }
+
+      // Add each page to PDF
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage()
+
+        const yPosition = isFiltered && i === 0 ? 25 : 10
+        const textLines = pdf.splitTextToSize(pages[i], pdfWidth - 20)
+        pdf.text(textLines, 10, yPosition)
+      }
+
+      // Download the PDF
+      pdf.save(`${title}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Error generating PDF. Please try again.')
+    }
   }
 
   const handleReplaceAll = () => {
@@ -270,10 +366,11 @@ const Editor = () => {
     tempDiv.innerHTML = text;
     const nodes = Array.from(tempDiv.childNodes);
     
-    const scenes: { id: number, html: string, textContent: string }[] = [];
+    const scenes: { id: number, html: string, textContent: string, sceneNumber: string }[] = [];
     let currentSceneHtml = '';
     let currentSceneText = '';
     let sceneCount = 0;
+    let currentSceneNumber = '0'; // For preamble
 
     // Load custom keywords from training center if available, else default
     const savedKeywords = localStorage.getItem('app-training-keywords')
@@ -284,12 +381,27 @@ const Editor = () => {
     const keywordPattern = keywords.map((k: string) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
     const sceneStartRegex = new RegExp(`^(?:\\d+[A-Z]?[\\.\\)]?\\s*)?(?:${keywordPattern})(?:[\\.\\-\\s]+)`, 'i');
 
+    const extractSceneNumber = (textLine: string): string => {
+      const match = textLine.trim().match(/^(?:SCENE[\s-]*|दृश्य[\s-]*|)?\s*(\d+[A-Z]*)/i);
+      return match ? match[1] : '';
+    };
+
     nodes.forEach((node) => {
       if (node.nodeType !== Node.ELEMENT_NODE) {
         const textContent = node.textContent || '';
         if (textContent.trim()) {
-          currentSceneHtml += `<div>${textContent}</div>`;
-          currentSceneText += textContent + '\n';
+          if (sceneStartRegex.test(textContent.trim())) {
+            if (currentSceneHtml) {
+              scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText, sceneNumber: currentSceneNumber });
+            }
+            sceneCount++;
+            currentSceneHtml = `<div>${textContent}</div>`;
+            currentSceneText = textContent + '\n';
+            currentSceneNumber = extractSceneNumber(textContent) || `${sceneCount}`;
+          } else {
+            currentSceneHtml += `<div>${textContent}</div>`;
+            currentSceneText += textContent + '\n';
+          }
         }
         return;
       }
@@ -324,7 +436,7 @@ const Editor = () => {
           // 1. Append the "before" part to the current scene
           if (beforeHtml.trim()) {
             const wrapper = document.createElement(element.tagName);
-            for (const attr of element.attributes) wrapper.setAttribute(attr.name, attr.value);
+            Array.from(element.attributes).forEach(attr => wrapper.setAttribute(attr.name, attr.value));
             wrapper.innerHTML = beforeHtml;
             currentSceneHtml += wrapper.outerHTML;
             currentSceneText += beforeText + '\n';
@@ -332,33 +444,36 @@ const Editor = () => {
 
           // 2. Finalize the previous scene
           if (currentSceneHtml) {
-            scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText });
+            scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText, sceneNumber: currentSceneNumber });
           }
 
           // 3. Start a new scene with the "after" part
           sceneCount++;
           const wrapperAfter = document.createElement(element.tagName);
-          for (const attr of element.attributes) wrapperAfter.setAttribute(attr.name, attr.value);
+          Array.from(element.attributes).forEach(attr => wrapperAfter.setAttribute(attr.name, attr.value));
           wrapperAfter.innerHTML = afterHtml;
           currentSceneHtml = wrapperAfter.outerHTML;
           currentSceneText = afterText + '\n';
+          currentSceneNumber = extractSceneNumber(textLines[sceneHeadingFoundAtIndex]) || `${sceneCount}`;
         } else {
           // Fallback: HTML structure doesn't match text lines. Treat whole element as new scene start.
           if (currentSceneHtml) {
-            scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText });
+            scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText, sceneNumber: currentSceneNumber });
           }
           sceneCount++;
           currentSceneHtml = elementHtml;
           currentSceneText = elementText + '\n';
+          currentSceneNumber = extractSceneNumber(textLines[0]) || `${sceneCount}`;
         }
       } else if (sceneHeadingFoundAtIndex === 0) {
         // The element itself is the start of a new scene
         if (currentSceneHtml) {
-          scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText });
+          scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText, sceneNumber: currentSceneNumber });
         }
         sceneCount++;
         currentSceneHtml = elementHtml;
         currentSceneText = elementText + '\n';
+        currentSceneNumber = extractSceneNumber(textLines[0]) || `${sceneCount}`;
       } else {
         // No scene heading found, just append the whole element
         currentSceneHtml += elementHtml;
@@ -367,27 +482,32 @@ const Editor = () => {
     });
     
     if (currentSceneHtml) {
-      scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText });
+      scenes.push({ id: sceneCount, html: currentSceneHtml, textContent: currentSceneText, sceneNumber: currentSceneNumber });
     }
 
     const query = searchQuery.toLowerCase().trim();
-    const filteredScenes = scenes.filter(scene => scene.textContent.toLowerCase().includes(query));
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Use word boundary if query is alphanumeric to avoid partial matches (e.g. "he" in "the")
+    const isWholeWord = /^[a-z0-9_]+$/i.test(query);
+    const searchRegex = new RegExp(isWholeWord ? `\\b${escapedQuery}\\b` : escapedQuery, 'i');
+    
+    const filteredScenes = scenes.filter(scene => searchRegex.test(scene.textContent));
 
     if (filteredScenes.length > 0) {
       const resultHtml = filteredScenes.map(s => {
-        // Highlight the search term
-        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const highlightRegex = new RegExp(`(${escapedQuery})(?![^<]*>)`, 'gi');
-        const highlightedHtml = s.html.replace(highlightRegex, '<span class="bg-yellow-200 text-black">$1</span>');
+        const highlightRegex = new RegExp(`(${isWholeWord ? `\\b${escapedQuery}\\b` : escapedQuery})(?![^<]*>)`, 'gi');
+
+        // Highlight the search term in the entire scene HTML
+        const contentHtml = s.html.replace(highlightRegex, '<span class="bg-yellow-200 text-black">$1</span>');
 
         return `
-        <div class="scene-result">
+        <div class="scene-result pb-4">
           <div style="font-size: 0.75rem; font-weight: bold; color: #6b7280; margin-bottom: 0.25rem;">
-            ${s.id > 0 ? `Scene #${s.id}` : 'Preamble'}
+            ${s.id > 0 ? `Scene #${s.sceneNumber}` : 'Preamble'}
           </div>
-          ${highlightedHtml}
+          ${contentHtml}
         </div>
-        <hr class="my-8 border-t-2 border-dashed border-gray-300" />
+        <hr class="my-16 border-t-4 border-gray-300" />
       `}).join('');
       setFilteredText(resultHtml);
     } else {
@@ -435,7 +555,16 @@ const Editor = () => {
         }
       `}</style>
       <div className="flex justify-between items-center p-3 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-black">{t('Script Editor')}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-black">{t('Script Editor')}</h2>
+          <span className={`text-xs px-2 py-0.5 rounded-full border ${
+            saveStatus === 'saved' ? 'bg-green-100 text-green-700 border-green-200' :
+            saveStatus === 'saving' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+            'bg-gray-100 text-gray-600 border-gray-200'
+          }`}>
+            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
+          </span>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -475,7 +604,7 @@ const Editor = () => {
             onClick={handleExportPDF}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md transition-colors text-sm"
           >
-            {filteredText ? t('Export Character PDF') : t('Export PDF')}
+            {filteredText ? t('Export Search PDF') : t('Export PDF')}
           </button>
           <input
             type="file"
@@ -557,7 +686,7 @@ const Editor = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder={t('Search by Character')}
+                placeholder={t('Search Script')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               />
               {searchQuery && (

@@ -14,7 +14,7 @@ interface CalendarViewProps {
   onEventDrop: (eventId: string, newStart: Date, newEnd: Date) => void;
 }
 
-const eventColors = {
+const eventColors: Record<string, string> = {
   shoot: '#10b981',
   meeting: '#3b82f6',
   deadline: '#ef4444',
@@ -35,7 +35,7 @@ export default function CalendarView({
     title: event.title,
     start: event.start,
     end: event.end,
-    color: eventColors[event.type],
+    color: eventColors[event.type || 'other'],
     extendedProps: event
   }));
 

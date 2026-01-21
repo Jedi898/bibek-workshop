@@ -2,41 +2,89 @@
 
 import { useState, useEffect } from 'react'
 import { Note } from '@/types'
+import { supabase } from '../lib/supabase'
 
-export default function Notes() {
+interface NotesProps {
+  projectId?: string
+}
+
+export default function Notes({ projectId }: NotesProps) {
   const [notes, setNotes] = useState<Note[]>([])
+  const [isLoaded, setIsLoaded] = useState(false)
   const [newNote, setNewNote] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
 
   useEffect(() => {
-    const saved = localStorage.getItem('notesState')
-    if (saved) setNotes(JSON.parse(saved))
-  }, [])
+    const fetchNotes = async () => {
+      if (!projectId) {
+        setNotes([])
+        setIsLoaded(true)
+        return
+      }
 
-  useEffect(() => {
-    localStorage.setItem('notesState', JSON.stringify(notes))
-  }, [notes])
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
 
-  const handleAdd = () => {
-    if (!newNote.trim()) return
-    const note: Note = {
-      id: Date.now().toString(),
+      if (error) {
+        console.error('Error fetching notes:', error)
+      } else if (data) {
+        // Map DB fields to Note type if necessary, or ensure types match
+        setNotes(data.map((n: any) => ({
+          ...n,
+          createdAt: new Date(n.created_at),
+          updatedAt: new Date(n.updated_at),
+          createdBy: n.created_by
+        })))
+      }
+      setIsLoaded(true)
+    }
+    fetchNotes()
+  }, [projectId])
+
+  const handleAdd = async () => {
+    if (!newNote.trim() || !projectId) return
+    
+    const noteToSave = {
       title: 'Note',
       content: newNote,
       type: 'general',
       priority,
       tags: [],
       mentions: [],
-      createdBy: 'user',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      created_by: 'user', // Replace with actual user ID when auth is ready
+      project_id: projectId
     }
-    setNotes([note, ...notes])
-    setNewNote('')
+
+    const { data, error } = await supabase
+      .from('notes')
+      .insert(noteToSave)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error saving note:', error)
+    } else if (data) {
+      const newNoteObj: Note = {
+        ...data,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+        createdBy: data.created_by
+      }
+      setNotes([newNoteObj, ...notes])
+      setNewNote('')
+    }
   }
 
-  const handleDelete = (id: string) => {
-    setNotes(notes.filter(n => n.id !== id))
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('notes').delete().eq('id', id)
+    if (!error) {
+      setNotes(notes.filter(n => n.id !== id))
+    } else {
+      console.error('Error deleting note:', error)
+    }
   }
 
   const getPriorityColor = (p: string) => {

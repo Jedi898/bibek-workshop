@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Character, Location, Contact } from '@/types';
+import { Character, Location, Contact } from '@/types/index';
 
 interface DatabaseManagerProps {
   characters: Character[];

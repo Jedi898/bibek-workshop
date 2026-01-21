@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { FileItem } from '@/types';
 import { uploadFile, deleteFile, createFolder } from '@/lib/api/files';
 
@@ -12,9 +12,13 @@ interface FileStorageProps {
 const folders = ['scripts', 'storyboards', 'contracts', 'production', 'art', 'sound'];
 
 export default function FileStorage({ projectId, initialFiles }: FileStorageProps) {
-  const [files, setFiles] = useState<FileItem[]>(initialFiles);
+  const [files, setFiles] = useState<FileItem[]>(initialFiles || []);
   const [currentFolder, setCurrentFolder] = useState('scripts');
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    setFiles(initialFiles || []);
+  }, [initialFiles]);
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = event.target.files;
@@ -55,13 +59,16 @@ export default function FileStorage({ projectId, initialFiles }: FileStorageProp
               <button
                 key={folder}
                 onClick={() => setCurrentFolder(folder)}
-                className={`px-3 py-1 rounded capitalize ${
+                className={`px-3 py-1 rounded capitalize flex items-center ${
                   currentFolder === folder
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 {folder}
+                <span className={`ml-2 text-xs ${currentFolder === folder ? 'text-blue-100' : 'text-gray-500'}`}>
+                  {files.filter(f => f.folder === folder).length}
+                </span>
               </button>
             ))}
           </div>
@@ -102,7 +109,7 @@ export default function FileStorage({ projectId, initialFiles }: FileStorageProp
                       <div>
                         <h4 className="font-medium truncate">{file.name}</h4>
                         <p className="text-sm text-gray-500">
-                          {formatFileSize(file.size)} • {new Date(file.uploadedAt).toLocaleDateString()}
+                          {formatFileSize(file.size ?? 0)} • {file.uploadedAt ? new Date(file.uploadedAt).toLocaleDateString() : 'Unknown'}
                         </p>
                       </div>
                     </div>

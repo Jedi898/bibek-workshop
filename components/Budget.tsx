@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useLanguage } from './LanguageContext'
+import { supabase } from '../lib/supabase'
 
 interface Expense {
   id: string
@@ -11,42 +12,77 @@ interface Expense {
   status: string
 }
 
-const Budget = () => {
+interface BudgetProps {
+  projectId?: string
+}
+
+const Budget = ({ projectId }: BudgetProps = {}) => {
   const { t } = useLanguage()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('budget')
-    if (saved) {
-      setExpenses(JSON.parse(saved))
-    }
-    setIsLoaded(true)
-  }, [])
+    const fetchExpenses = async () => {
+      if (!projectId) {
+        setExpenses([])
+        setIsLoaded(true)
+        return
+      }
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('budget', JSON.stringify(expenses))
-    }
-  }, [expenses, isLoaded])
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
 
-  const addExpense = () => {
-    setExpenses([...expenses, {
-      id: Date.now().toString(),
+      if (error) {
+        console.error('Error fetching expenses:', error)
+      } else if (data) {
+        setExpenses(data)
+      }
+      setIsLoaded(true)
+    }
+    fetchExpenses()
+  }, [projectId])
+
+  const addExpense = async () => {
+    if (!projectId) return
+    
+    const newExpense = {
+      project_id: projectId,
       item: '',
       category: 'Food/Khaja',
-      amount: '',
+      amount: 0,
       status: 'Pending'
-    }])
+    }
+
+    const { data, error } = await supabase
+      .from('expenses')
+      .insert(newExpense)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error adding expense:', error)
+    } else if (data) {
+      setExpenses([data, ...expenses])
+    }
   }
 
-  const updateExpense = (id: string, field: keyof Expense, value: string) => {
+  const updateExpense = async (id: string, field: keyof Expense, value: string) => {
+    // Optimistic update
     setExpenses(expenses.map(exp => exp.id === id ? { ...exp, [field]: value } : exp))
+    
+    // Debounce could be added here, but for now we save directly
+    await supabase.from('expenses').update({ [field]: value }).eq('id', id)
   }
 
-  const deleteExpense = (id: string) => {
+  const deleteExpense = async (id: string) => {
     if (window.confirm(t('Are you sure you want to delete this item?'))) {
-      setExpenses(expenses.filter(exp => exp.id !== id))
+      const { error } = await supabase.from('expenses').delete().eq('id', id)
+      if (!error) {
+        setExpenses(expenses.filter(exp => exp.id !== id))
+      }
     }
   }
 

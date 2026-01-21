@@ -6,6 +6,7 @@ type Language = 'en' | 'ne'
 
 const translations: Record<string, Record<Language, string>> = {
   // Sidebar
+  'Dashboard': { en: 'Dashboard', ne: 'ड्यासबोर्ड' },
   'Script Editor': { en: 'Script Editor', ne: 'स्क्रिप्ट सम्पादक' },
   'Scene Breakdown': { en: 'Scene Breakdown', ne: 'दृश्य विवरण' },
   'Characters': { en: 'Characters', ne: 'पात्रहरू' },
@@ -16,8 +17,10 @@ const translations: Record<string, Record<Language, string>> = {
   'Notes': { en: 'Notes', ne: 'नोटहरू' },
   'Weather': { en: 'Weather', ne: 'मौसम' },
   'Budget': { en: 'Budget', ne: 'बजेट' },
+  'Timeline': { en: 'Timeline', ne: 'समयरेखा' },
   'Shot Planning': { en: 'Shot Planning', ne: 'शट योजना' },
   'Screenwriting App': { en: 'Screenwriting App', ne: 'पटकथा लेखन एप' },
+  'Current Project': { en: 'Current Project', ne: 'हालको परियोजना' },
 
   // Common
   'Date': { en: 'Date', ne: 'मिति' },
@@ -38,6 +41,8 @@ const translations: Record<string, Record<Language, string>> = {
   
   // Script Editor Search
   'Search by Character': { en: 'Search by Character', ne: 'पात्रद्वारा खोज्नुहोस्' },
+  'Search Script': { en: 'Search Script', ne: 'स्क्रिप्ट खोज्नुहोस्' },
+  'Export Search PDF': { en: 'Export Search PDF', ne: 'खोज PDF निर्यात' },
   'Search': { en: 'Search', ne: 'खोज्नुहोस्' },
   'Search Results': { en: 'Search Results', ne: 'खोज परिणामहरू' },
   'No results found.': { en: 'No results found.', ne: 'कुनै परिणाम फेला परेन।' },
@@ -146,6 +151,7 @@ const translations: Record<string, Record<Language, string>> = {
   'Add Character': { en: '+ Add Character', ne: '+ पात्र थप्नुहोस्' },
   'Add Location': { en: '+ Add Location', ne: '+ स्थान थप्नुहोस्' },
   'Setting': { en: 'Setting', ne: 'सेटिङ' },
+  'Select Location': { en: 'Select Location', ne: 'स्थान छान्नुहोस्' },
   'Are you sure you want to delete this item?': { en: 'Are you sure you want to delete this item?', ne: 'के तपाइँ निश्चित रूपमा यो वस्तु मेटाउन चाहनुहुन्छ?' },
   'Permit Status': { en: 'Permit Status', ne: 'अनुमति स्थिति' },
   'Required': { en: 'Required', ne: 'आवश्यक' },
@@ -155,10 +161,37 @@ const translations: Record<string, Record<Language, string>> = {
   'Upload Photo': { en: 'Upload Photo', ne: 'फोटो अपलोड गर्नुहोस्' },
   'Character Details': { en: 'Character Details', ne: 'पात्र विवरण' },
   'Close': { en: 'Close', ne: 'बन्द गर्नुहोस्' },
+  'Assigned Actor': { en: 'Assigned Actor', ne: 'तोकिएको कलाकार' },
+  'Not Assigned': { en: 'Not Assigned', ne: 'तोकिएको छैन' },
+  'Played by': { en: 'Played by', ne: 'द्वारा अभिनित' },
   'Delete': { en: 'Delete', ne: 'मेटाउनुहोस्' },
   'Location Details': { en: 'Location Details', ne: 'स्थान विवरण' },
   'Upload Permit Image': { en: 'Upload Permit Image', ne: 'अनुमति पत्रको फोटो अपलोड गर्नुहोस्' },
   'Permit Image': { en: 'Permit Image', ne: 'अनुमति पत्रको फोटो' },
+
+  // Projects
+  'My Projects': { en: 'My Projects', ne: 'मेरो परियोजनाहरू' },
+  'New Project': { en: 'New Project', ne: 'नयाँ परियोजना' },
+  'Create New Project': { en: 'Create New Project', ne: 'नयाँ परियोजना सिर्जना गर्नुहोस्' },
+  'Project Name': { en: 'Project Name', ne: 'परियोजनाको नाम' },
+  'No projects found': { en: 'No projects found', ne: 'कुनै परियोजना फेला परेन' },
+  'Create your first project': { en: 'Create your first project', ne: 'तपाईंको पहिलो परियोजना सिर्जना गर्नुहोस्' },
+  'Delete Project': { en: 'Delete Project', ne: 'परियोजना मेटाउनुहोस्' },
+  'Are you sure you want to delete this project?': { en: 'Are you sure you want to delete this project?', ne: 'के तपाईं यो परियोजना मेटाउन निश्चित हुनुहुन्छ?' },
+  'Create': { en: 'Create', ne: 'सिर्जना गर्नुहोस्' },
+  'Cancel': { en: 'Cancel', ne: 'रद्द गर्नुहोस्' },
+  'No description': { en: 'No description', ne: 'कुनै विवरण छैन' },
+  'Search projects...': { en: 'Search projects...', ne: 'परियोजनाहरू खोज्नुहोस्...' },
+  'No projects found matching your search.': { en: 'No projects found matching your search.', ne: 'तपाईंको खोजसँग मेल खाने कुनै परियोजना फेला परेन।' },
+  'Show Active Projects': { en: 'Show Active Projects', ne: 'सक्रिय परियोजनाहरू देखाउनुहोस्' },
+  'Show Deleted Projects': { en: 'Show Deleted Projects', ne: 'मेटाइएका परियोजनाहरू देखाउनुहोस्' },
+  'Restore': { en: 'Restore', ne: 'पुनर्स्थापना गर्नुहोस्' },
+  'Delete Permanently': { en: 'Delete Permanently', ne: 'स्थायी रूपमा मेटाउनुहोस्' },
+  
+  // Timeline
+  'Project Timeline': { en: 'Project Timeline', ne: 'परियोजना समयरेखा' },
+  'Start Date': { en: 'Start Date', ne: 'सुरु मिति' },
+  'Duration (Days)': { en: 'Duration (Days)', ne: 'अवधि (दिन)' },
 
   // Budget
   'Expenses': { en: 'Expenses', ne: 'खर्च' },
