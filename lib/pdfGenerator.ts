@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ShootingDay, Scene, Contact, Location, WeatherData, ContinuityItem } from '@/types';
+import { ShootingDay, Scene, Contact, Location, WeatherData, ContinuityItem } from '@/types/index';
 
 export class PDFGenerator {
   private doc: jsPDF;
@@ -54,20 +54,20 @@ export class PDFGenerator {
     
     // Scenes
     this.doc.setFontSize(14);
-    this.doc.text('SCENES', 20, this.doc.lastAutoTable.finalY + 10);
+    this.doc.text('SCENES', 20, (this.doc as any).lastAutoTable.finalY + 10);
     
     const sceneData = shootingDay.scenes.map(sceneId => {
       const scene = scenes.find(s => s.id === sceneId);
       return [
         scene?.sceneNumber || '',
-        scene?.title || '',
-        scene?.timeOfDay.toUpperCase() || '',
+        scene?.heading || '',
+        scene?.time?.toUpperCase() || '',
         scene?.estimatedTime + 'min' || ''
       ];
     });
     
     autoTable(this.doc, {
-      startY: this.doc.lastAutoTable.finalY + 20,
+      startY: (this.doc as any).lastAutoTable.finalY + 20,
       head: [['Scene', 'Description', 'Time', 'Est. Time']],
       body: sceneData,
       theme: 'grid',
@@ -79,7 +79,7 @@ export class PDFGenerator {
     const crew = contacts.filter(c => c.type === 'crew' && shootingDay.crew.includes(c.id));
     
     this.doc.setFontSize(14);
-    this.doc.text('CAST', 20, this.doc.lastAutoTable.finalY + 10);
+    this.doc.text('CAST', 20, (this.doc as any).lastAutoTable.finalY + 10);
     
     const castData = cast.map(contact => [
       contact.name,
@@ -88,7 +88,7 @@ export class PDFGenerator {
     ]);
     
     autoTable(this.doc, {
-      startY: this.doc.lastAutoTable.finalY + 20,
+      startY: (this.doc as any).lastAutoTable.finalY + 20,
       head: [['Name', 'Role', 'Call Time']],
       body: castData,
       theme: 'grid',
@@ -96,7 +96,7 @@ export class PDFGenerator {
     });
     
     this.doc.setFontSize(14);
-    this.doc.text('CREW', 20, this.doc.lastAutoTable.finalY + 10);
+    this.doc.text('CREW', 20, (this.doc as any).lastAutoTable.finalY + 10);
     
     const crewData = crew.map(contact => [
       contact.name,
@@ -105,7 +105,7 @@ export class PDFGenerator {
     ]);
     
     autoTable(this.doc, {
-      startY: this.doc.lastAutoTable.finalY + 20,
+      startY: (this.doc as any).lastAutoTable.finalY + 20,
       head: [['Name', 'Department', 'Role']],
       body: crewData,
       theme: 'grid',
@@ -115,16 +115,16 @@ export class PDFGenerator {
     // Notes
     if (shootingDay.notes) {
       this.doc.setFontSize(14);
-      this.doc.text('NOTES', 20, this.doc.lastAutoTable.finalY + 10);
+      this.doc.text('NOTES', 20, (this.doc as any).lastAutoTable.finalY + 10);
       this.doc.setFontSize(10);
       const splitNotes = this.doc.splitTextToSize(shootingDay.notes, 170);
-      this.doc.text(splitNotes, 20, this.doc.lastAutoTable.finalY + 20);
+      this.doc.text(splitNotes, 20, (this.doc as any).lastAutoTable.finalY + 20);
     }
     
     // Weather Info
     if (weather) {
       this.doc.setFontSize(14);
-      this.doc.text('WEATHER', 20, this.doc.lastAutoTable.finalY + 20);
+      this.doc.text('WEATHER', 20, (this.doc as any).lastAutoTable.finalY + 20);
       this.doc.setFontSize(10);
       
       const weatherData = [
@@ -137,7 +137,7 @@ export class PDFGenerator {
       ];
       
       autoTable(this.doc, {
-        startY: this.doc.lastAutoTable.finalY + 30,
+        startY: (this.doc as any).lastAutoTable.finalY + 30,
         body: weatherData,
         theme: 'grid',
         styles: { fontSize: 9 }
@@ -157,13 +157,13 @@ export class PDFGenerator {
     
     const sceneData = scenes.map(scene => [
       scene.sceneNumber.toString(),
-      scene.title,
-      scene.timeOfDay,
-      scene.interiorExterior,
+      scene.heading || '',
+      scene.time || '',
+      scene.heading?.includes('INT') ? 'INT' : (scene.heading?.includes('EXT') ? 'EXT' : ''),
       scene.estimatedTime + 'min',
-      scene.characters.length.toString(),
-      scene.props.length.toString(),
-      scene.status
+      (scene.logistics?.characters?.length || 0).toString(),
+      (scene.logistics?.props?.length || 0).toString(),
+      scene.status || ''
     ]);
     
     autoTable(this.doc, {

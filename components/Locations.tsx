@@ -138,75 +138,78 @@ const Locations = ({ projectId }: LocationsProps = {}) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-gray-800 rounded-lg shadow">
-        <table className="w-full text-left border-collapse min-w-[800px]">
-          <thead>
-            <tr className="bg-gray-900 border-b border-gray-700">
-              <th className="p-3 text-sm font-semibold text-gray-300 w-1/3">{t('Name')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-20">{t('Setting')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-32">{t('Permit Status')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300">{t('Description')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-10"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {locations.map((loc) => (
-              <tr key={loc.id} className="border-b border-gray-700 hover:bg-gray-750">
-                <td className="p-2">
-                  <input 
-                    type="text" 
-                    value={loc.name} 
-                    onChange={(e) => updateLocation(loc.id, 'name', e.target.value)} 
-                    onBlur={() => persistLocation(loc)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm uppercase" 
-                    placeholder={t('Name')} 
-                  />
-                </td>
-                <td className="p-2">
-                  <select
-                    value={loc.setting}
-                    onChange={(e) => updateLocation(loc.id, 'setting', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
-                  >
-                    <option value="INT">INT</option>
-                    <option value="EXT">EXT</option>
-                    <option value="I/E">I/E</option>
-                  </select>
-                </td>
-                <td className="p-2">
-                  <select
-                    value={loc.permitStatus}
-                    onChange={(e) => updateLocation(loc.id, 'permitStatus', e.target.value)}
-                    className={`w-full border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm ${
-                      loc.permitStatus === 'Obtained' ? 'bg-green-900 text-green-100' : 
-                      loc.permitStatus === 'Required' ? 'bg-red-900 text-red-100' : 'bg-gray-700'
-                    }`}
-                  >
-                    <option value="Not Required">{t('Not Required')}</option>
-                    <option value="Required">{t('Required')}</option>
-                    <option value="Obtained">{t('Obtained')}</option>
-                  </select>
-                </td>
-                <td className="p-2">
-                  <input 
-                    type="text" 
-                    value={loc.description} 
-                    onChange={(e) => updateLocation(loc.id, 'description', e.target.value)} 
-                    onBlur={() => persistLocation(loc)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" 
-                    placeholder={t('Description')} 
-                  />
-                </td>
-                <td className="p-2 text-center">
-                  <button onClick={() => deleteLocation(loc.id)} className="text-gray-500 hover:text-red-500 transition-colors">×</button>
-                </td>
-              </tr>
-            ))}
-            {locations.length === 0 && (
-              <tr><td colSpan={5} className="p-4 text-center text-gray-500">No locations added yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+      <div className="space-y-4">
+        {/* Header for larger screens */}
+        <div className="hidden md:grid grid-cols-[2fr,1fr,1fr,3fr,auto] gap-4 px-4 py-2 bg-gray-800 rounded-t-lg text-sm font-semibold text-gray-300">
+          <div>{t('Name')}</div>
+          <div>{t('Setting')}</div>
+          <div>{t('Permit Status')}</div>
+          <div>{t('Description')}</div>
+          <div></div>
+        </div>
+        {locations.length > 0 ? locations.map((loc) => (
+          <div key={loc.id} className="bg-gray-800 md:bg-transparent md:grid md:grid-cols-[2fr,1fr,1fr,3fr,auto] gap-4 p-4 md:p-0 md:px-4 md:py-2 rounded-lg md:rounded-none border md:border-0 border-gray-700 items-center">
+            {/* Name */}
+            <div className="md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Name')}</label>
+              <input 
+                type="text" 
+                value={loc.name} 
+                onChange={(e) => updateLocation(loc.id, 'name', e.target.value)} 
+                onBlur={() => persistLocation(loc)}
+                className="w-full bg-transparent md:bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm uppercase" 
+                placeholder={t('Name')} 
+              />
+            </div>
+            {/* Setting */}
+            <div className="mt-2 md:mt-0 md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Setting')}</label>
+              <select
+                value={loc.setting}
+                onChange={(e) => updateLocation(loc.id, 'setting', e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+              >
+                <option value="INT">INT</option>
+                <option value="EXT">EXT</option>
+                <option value="I/E">I/E</option>
+              </select>
+            </div>
+            {/* Permit Status */}
+            <div className="mt-2 md:mt-0 md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Permit Status')}</label>
+              <select
+                value={loc.permitStatus}
+                onChange={(e) => updateLocation(loc.id, 'permitStatus', e.target.value)}
+                className={`w-full border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm ${
+                  loc.permitStatus === 'Obtained' ? 'bg-green-900 text-green-100' : 
+                  loc.permitStatus === 'Required' ? 'bg-red-900 text-red-100' : 'bg-gray-700'
+                }`}
+              >
+                <option value="Not Required">{t('Not Required')}</option>
+                <option value="Required">{t('Required')}</option>
+                <option value="Obtained">{t('Obtained')}</option>
+              </select>
+            </div>
+            {/* Description */}
+            <div className="mt-2 md:mt-0 md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Description')}</label>
+              <input 
+                type="text" 
+                value={loc.description} 
+                onChange={(e) => updateLocation(loc.id, 'description', e.target.value)} 
+                onBlur={() => persistLocation(loc)}
+                className="w-full bg-transparent md:bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" 
+                placeholder={t('Description')} 
+              />
+            </div>
+            {/* Delete */}
+            <div className="mt-4 md:mt-0 md:p-2 text-right md:text-center">
+              <button onClick={() => deleteLocation(loc.id)} className="text-gray-500 hover:text-red-500 transition-colors">×</button>
+            </div>
+          </div>
+        )) : (
+          <div className="p-4 text-center text-gray-500">No locations added yet.</div>
+        )}
       </div>
     </div>
   )

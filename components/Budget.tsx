@@ -89,7 +89,7 @@ const Budget = ({ projectId }: BudgetProps = {}) => {
   const totalAmount = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0)
 
   return (
-    <div className="p-6 text-white h-full overflow-y-auto">
+    <div className="p-6 text-gray-900 h-full overflow-y-auto">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">{t('Budget')} & {t('Expenses')}</h2>
         <div className="text-xl font-bold bg-gray-700 px-4 py-2 rounded">
@@ -106,44 +106,56 @@ const Budget = ({ projectId }: BudgetProps = {}) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-gray-800 rounded-lg shadow">
-        <table className="w-full text-left border-collapse min-w-[800px]">
-          <thead>
-            <tr className="bg-gray-900 border-b border-gray-700">
-              <th className="p-3 text-sm font-semibold text-gray-300">{t('Item')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-48">{t('Category')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-32">{t('Amount (NPR)')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-32">{t('Status')}</th>
-              <th className="p-3 text-sm font-semibold text-gray-300 w-10"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.map((exp) => (
-              <tr key={exp.id} className="border-b border-gray-700 hover:bg-gray-750">
-                <td className="p-2"><input type="text" value={exp.item} onChange={(e) => updateExpense(exp.id, 'item', e.target.value)} className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" placeholder={t('Item')} /></td>
-                <td className="p-2">
-                  <select value={exp.category} onChange={(e) => updateExpense(exp.id, 'category', e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm">
-                    <option value="Food/Khaja">Food/Khaja</option>
-                    <option value="Travel/Yatayat">Travel/Yatayat</option>
-                    <option value="Props/Samagri">Props/Samagri</option>
-                    <option value="Location/Sthan">Location/Sthan</option>
-                    <option value="Cast/Kalakar">Cast/Kalakar</option>
-                    <option value="Crew/Prabidhik">Crew/Prabidhik</option>
-                    <option value="Misc/Vividh">Misc/Vividh</option>
-                  </select>
-                </td>
-                <td className="p-2"><input type="number" value={exp.amount} onChange={(e) => updateExpense(exp.id, 'amount', e.target.value)} className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" placeholder="0" /></td>
-                <td className="p-2">
-                   <select value={exp.status} onChange={(e) => updateExpense(exp.id, 'status', e.target.value)} className={`w-full border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm ${exp.status === 'Paid' ? 'bg-green-900 text-green-100' : 'bg-yellow-900 text-yellow-100'}`}>
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                  </select>
-                </td>
-                <td className="p-2 text-center"><button onClick={() => deleteExpense(exp.id)} className="text-gray-500 hover:text-red-500 transition-colors">×</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-4">
+        {/* Header for larger screens */}
+        <div className="hidden md:grid grid-cols-[3fr,2fr,1fr,1fr,auto] gap-4 px-4 py-2 bg-gray-800 rounded-t-lg text-sm font-semibold text-gray-300">
+          <div>{t('Item')}</div>
+          <div>{t('Category')}</div>
+          <div className="text-right">{t('Amount (NPR)')}</div>
+          <div>{t('Status')}</div>
+          <div></div>
+        </div>
+        {expenses.length > 0 ? expenses.map((exp) => (
+          <div key={exp.id} className="bg-gray-800 md:bg-transparent md:grid md:grid-cols-[3fr,2fr,1fr,1fr,auto] gap-4 p-4 md:p-0 md:px-4 md:py-2 rounded-lg md:rounded-none border md:border-0 border-gray-700 items-center">
+            {/* Item */}
+            <div className="md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Item')}</label>
+              <input type="text" value={exp.item} onChange={(e) => updateExpense(exp.id, 'item', e.target.value)} className="w-full bg-transparent md:bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm" placeholder={t('Item')} />
+            </div>
+            {/* Category */}
+            <div className="mt-2 md:mt-0 md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Category')}</label>
+              <select value={exp.category} onChange={(e) => updateExpense(exp.id, 'category', e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm">
+                <option value="Food/Khaja">Food/Khaja</option>
+                <option value="Travel/Yatayat">Travel/Yatayat</option>
+                <option value="Props/Samagri">Props/Samagri</option>
+                <option value="Location/Sthan">Location/Sthan</option>
+                <option value="Cast/Kalakar">Cast/Kalakar</option>
+                <option value="Crew/Prabidhik">Crew/Prabidhik</option>
+                <option value="Misc/Vividh">Misc/Vividh</option>
+              </select>
+            </div>
+            {/* Amount */}
+            <div className="mt-2 md:mt-0 md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Amount (NPR)')}</label>
+              <input type="number" value={exp.amount} onChange={(e) => updateExpense(exp.id, 'amount', e.target.value)} className="w-full bg-transparent md:bg-gray-700 border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm md:text-right" placeholder="0" />
+            </div>
+            {/* Status */}
+            <div className="mt-2 md:mt-0 md:p-2">
+              <label className="md:hidden text-xs font-bold text-gray-400">{t('Status')}</label>
+              <select value={exp.status} onChange={(e) => updateExpense(exp.id, 'status', e.target.value)} className={`w-full border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm ${exp.status === 'Paid' ? 'bg-green-900 text-green-100' : 'bg-yellow-900 text-yellow-100'}`}>
+                <option value="Pending">Pending</option>
+                <option value="Paid">Paid</option>
+              </select>
+            </div>
+            {/* Delete */}
+            <div className="mt-4 md:mt-0 md:p-2 text-right md:text-center">
+              <button onClick={() => deleteExpense(exp.id)} className="text-gray-500 hover:text-red-500 transition-colors">×</button>
+            </div>
+          </div>
+        )) : (
+          <div className="p-4 text-center text-gray-500">No expenses added yet.</div>
+        )}
       </div>
     </div>
   )

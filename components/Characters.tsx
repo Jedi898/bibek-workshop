@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Contact } from '@/types'
+import { Contact } from '@/types/index'
 import { useLanguage } from './LanguageContext'
 import { supabase } from '../lib/supabase'
 // import imageCompression from 'browser-image-compression'

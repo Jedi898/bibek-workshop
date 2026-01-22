@@ -18,7 +18,7 @@ import {
   Note, 
   Contact, 
   ShootingDay 
-} from '@/types';
+} from '@/types/index';
 import { 
   fetchCalendarEvents, 
   fetchScripts, 
@@ -115,7 +115,7 @@ export default function ProductionPage({ params }: ProductionPageProps) {
   const currentScript = scripts[0];
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col h-screen overflow-hidden">
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -153,7 +153,7 @@ export default function ProductionPage({ params }: ProductionPageProps) {
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 overflow-y-auto w-full">
         {activeTab === 'calendar' && (
           <CalendarView
             projectId={projectId}
@@ -167,7 +167,10 @@ export default function ProductionPage({ params }: ProductionPageProps) {
         
         {activeTab === 'scripts' && currentScript && (
           <ScriptEditor
-            script={currentScript}
+            script={{
+              ...currentScript,
+              updatedAt: new Date(currentScript.updatedAt).toISOString()
+            } as any}
             projectId={projectId}
             onSave={async (content) => {
               console.log('Saving script:', content);
@@ -178,7 +181,15 @@ export default function ProductionPage({ params }: ProductionPageProps) {
         
         {activeTab === 'breakdown' && (
           <SceneBreakdown
-            scenes={scenes}
+            scenes={scenes.map(s => ({
+              ...s,
+              location: { 
+                type: s.heading?.includes('EXT') ? 'EXT.' : 'INT.',
+                name: locations.find(l => l.id === s.locationId)?.name || 'Unknown'
+              },
+              summary: s.metadata?.summary || '',
+              script: s.content || ''
+            })) as any}
             characters={characters}
             locations={locations}
             projectId={projectId}

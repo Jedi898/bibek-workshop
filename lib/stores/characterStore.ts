@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Character } from '@/types'
+import { Character } from '@/types/index'
 
 interface CharacterStore {
   characters: Character[]
@@ -15,7 +15,7 @@ export const useCharacterStore = create<CharacterStore>()(
     (set, get) => ({
       characters: [],
       addCharacter: (charData) => set((state) => ({
-        characters: [...state.characters, { ...charData, id: Math.random().toString(36).substring(2, 9) }]
+        characters: [...state.characters, { ...charData, id: Math.random().toString(36).substring(2, 9) } as Character]
       })),
       updateCharacter: (id, updates) => set((state) => ({
         characters: state.characters.map((c) => c.id === id ? { ...c, ...updates } : c)

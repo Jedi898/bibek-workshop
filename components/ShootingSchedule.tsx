@@ -1,8 +1,33 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Scene, Location, Contact, ShootingDay } from '@/types';
+import { Contact } from '@/types/index';
 import { generateSchedule, optimizeSchedule } from '@/lib/schedule';
+
+export interface Location {
+  id: string;
+  name: string;
+  [key: string]: any;
+}
+
+export interface Scene {
+  id: string;
+  sceneNumber: string;
+  status?: string;
+  estimatedTime?: number;
+  locationId?: string;
+  [key: string]: any;
+}
+
+export interface ShootingDay {
+  id: string;
+  date: string;
+  locationId?: string;
+  status: string;
+  callTime: string;
+  scenes: string[];
+  crew: string[];
+}
 
 interface ShootingScheduleProps {
   scenes: Scene[];
@@ -35,10 +60,10 @@ export default function ShootingSchedule({
     [scenes]
   );
 
-  const availableActors = useMemo(() => 
-    contacts.filter(contact => 
-      contact.type === 'cast' && 
-      contact.availability.some(range => range.type === 'available')
+  const availableActors = useMemo(() =>
+    contacts.filter(contact =>
+      contact.type === 'cast' &&
+      contact.availability?.some(range => range.type === 'available')
     ),
     [contacts]
   );

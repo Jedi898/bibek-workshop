@@ -213,7 +213,7 @@ export default function DatabaseManager({
                   <div>
                     <h3 className="font-semibold mb-3">Availability</h3>
                     <div className="space-y-2">
-                      {selectedItem.availability.map((range, index) => (
+                      {(selectedItem as Location).availability?.map((range, index) => (
                         <div key={index} className="p-2 border rounded">
                           <div className="flex justify-between">
                             <span>{new Date(range.start).toLocaleDateString()}</span>

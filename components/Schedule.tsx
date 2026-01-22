@@ -5,7 +5,7 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import { Character } from '../types'
+import { Character } from '@/types/index'
 import { useLanguage } from './LanguageContext'
 import { supabase } from '../lib/supabase'
 

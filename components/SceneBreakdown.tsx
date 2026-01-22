@@ -151,41 +151,57 @@ const SceneBreakdown = ({ projectId }: SceneBreakdownProps = {}) => {
   const handleGenerateShotList = async () => {
     if (!selectedScene) return
     setIsGeneratingShots(true)
-    try {
-      const response = await fetch('/api/generate-shots', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sceneText: selectedScene.content,
-          directorNotes: `Mood: ${selectedScene.creative.mood || ''}. Visuals: ${selectedScene.creative.visuals.join(', ')}`,
-          model: 'thenaijapromptengineer/matsya-7b'
+    setError(null)
+    
+    let attempts = 0
+    const maxAttempts = 3
+
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch('/api/generate-shots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sceneText: selectedScene.content,
+            directorNotes: `Mood: ${selectedScene.creative.mood || ''}. Visuals: ${selectedScene.creative.visuals.join(', ')}`,
+            model: 'thenaijapromptengineer/matsya-7b'
+          })
         })
-      })
 
-      if (!response.ok) throw new Error('Failed to generate shots')
-      
-      const data = await response.json()
-      const shotList = data.shotList
+        if (!response.ok) {
+          const errorData = await response.clone().json().catch(() => ({}))
+          throw new Error(errorData.error || `Failed to generate shots: ${response.statusText}`)
+        }
+        
+        const data = await response.clone().json()
+        const shotList = data.shotList
 
-      // Update Supabase
-      const { error } = await supabase
-        .from('scenes')
-        .update({ shot_list: shotList })
-        .eq('id', selectedScene.id)
+        // Update Supabase
+        const { error } = await supabase
+          .from('scenes')
+          .update({ shot_list: shotList })
+          .eq('id', selectedScene.id)
 
-      if (error) throw error
+        if (error) throw error
 
-      // Update local state
-      const updatedScene = { ...selectedScene, shotList }
-      setSelectedScene(updatedScene)
-      setScenes(scenes.map(s => s.id === selectedScene.id ? updatedScene : s))
-      
-    } catch (err) {
-      console.error(err)
-      alert('Error generating shot list')
-    } finally {
-      setIsGeneratingShots(false)
+        // Update local state
+        const updatedScene = { ...selectedScene, shotList }
+        setSelectedScene(updatedScene)
+        setScenes(scenes.map(s => s.id === selectedScene.id ? updatedScene : s))
+        
+        break // Success
+      } catch (err: any) {
+        console.error(`Attempt ${attempts + 1} failed:`, err)
+        attempts++
+        if (attempts >= maxAttempts) {
+          setError(err.message || 'Error generating shot list')
+        } else {
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts - 1)))
+        }
+      }
     }
+    setIsGeneratingShots(false)
   }
 
   const extractPdfWithOcr = async (file: File): Promise<string> => {

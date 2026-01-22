@@ -72,14 +72,14 @@ const Weather = () => {
     return t('Unknown')
   }
 
-  if (loading) return <div className="p-6 text-white">{t('Loading weather data...')}</div>
-  if (error) return <div className="p-6 text-red-400">{t(error) || error}</div>
+  if (loading) return <div className="p-6 text-gray-600">{t('Loading weather data...')}</div>
+  if (error) return <div className="p-6 text-red-600">{t(error) || error}</div>
 
   return (
-    <div className="p-6 text-white h-full overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-6">{t('Real-time Weather')}</h2>
+    <div className="p-6 text-gray-900 h-full overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-6 text-gray-900">{t('Real-time Weather')}</h2>
       {weather && weather.current_weather && (
-        <div className="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md mx-auto md:mx-0">
+        <div className="bg-gray-800 text-white p-8 rounded-lg shadow-lg max-w-md mx-auto md:mx-0">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">{getWeatherDescription(weather.current_weather.weathercode).split(' ')[1]}</div>
             <h3 className="text-5xl font-bold mb-2">{weather.current_weather.temperature}°C</h3>

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Scene } from '@/types'
+import { Scene } from '@/types/index'
 
 interface SceneStore {
   scenes: Scene[]
@@ -15,7 +15,7 @@ export const useSceneStore = create<SceneStore>()(
     (set, get) => ({
       scenes: [],
       addScene: (sceneData) => set((state) => ({
-        scenes: [...state.scenes, { ...sceneData, id: Math.random().toString(36).substring(2, 9) }]
+        scenes: [...state.scenes, { ...sceneData, id: Math.random().toString(36).substring(2, 9) } as Scene]
       })),
       updateScene: (id, updates) => set((state) => ({
         scenes: state.scenes.map((s) => s.id === id ? { ...s, ...updates } : s)

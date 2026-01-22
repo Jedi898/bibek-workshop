@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Note, User } from '@/types';
+import { Note, User } from '@/types/index';
 
 interface NotesManagerProps {
   notes: Note[];

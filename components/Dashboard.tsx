@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useScriptStore } from '../lib/stores/scriptStore'
 import { supabase } from '../lib/supabase'
+import { Calendar, FileText, Camera, ClipboardList, Clock, MapPin } from 'lucide-react'
 
 interface Location {
   id: string
@@ -84,26 +85,26 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="space-y-8">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Film Production Manager</h1>
-        <p className="text-gray-600">Your daily schedule and important notices</p>
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl shadow-lg p-8 text-white">
+        <h1 className="text-3xl font-bold mb-2 text-amber-400">Welcome to Film Production Manager</h1>
+        <p className="text-gray-300">Your daily schedule and important notices</p>
         
         {/* Project Progress Bar */}
-        <div className="mt-6 pt-6 border-t border-gray-100">
+        <div className="mt-8 pt-6 border-t border-gray-700">
           <div className="flex justify-between text-sm mb-2">
-            <span className="font-medium text-gray-700">Project Progress (Target: {projectDuration} Days)</span>
-            <span className="text-blue-600 font-bold">Day 1 of {projectDuration}</span>
+            <span className="font-medium text-gray-300">Project Progress (Target: {projectDuration} Days)</span>
+            <span className="text-amber-400 font-bold">Day 1 of {projectDuration}</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(1/projectDuration)*100}%` }}></div>
+          <div className="w-full bg-gray-700 rounded-full h-2.5">
+            <div className="bg-amber-500 h-2.5 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" style={{ width: `${(1/projectDuration)*100}%` }}></div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Today's Schedule */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Today's Schedule</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"><Calendar className="w-5 h-5 text-blue-600" /> Today's Schedule</h2>
           {todaySchedule.length > 0 ? (
             <div className="space-y-4">
               {todaySchedule.map((item) => (
@@ -113,11 +114,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                       <h3 className="font-medium text-gray-900">
                         {item.title}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        {formatTime(item.start)} - {formatTime(item.end)}
+                      <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3" /> {formatTime(item.start)} - {formatTime(item.end)}
                       </p>
                       {item.locationId && (
-                        <p className="text-gray-600 text-sm">📍 {locations.find(l => l.id === item.locationId)?.name || 'Unknown Location'}</p>
+                        <p className="text-gray-600 text-sm flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" /> {locations.find(l => l.id === item.locationId)?.name || 'Unknown Location'}</p>
                       )}
                     </div>
                     <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 capitalize">
@@ -133,8 +134,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         </div>
 
         {/* Important Notices */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Important Notices</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-amber-600" /> Important Notices</h2>
           {importantNotices.length > 0 ? (
             <div className="space-y-4">
               {importantNotices.map((notice) => (
@@ -157,19 +158,23 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button onClick={() => onNavigate?.('schedule')} className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200">
+          <button onClick={() => onNavigate?.('schedule')} className="flex flex-col items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-6 px-4 rounded-xl transition duration-200 border border-blue-100">
+            <Calendar className="w-8 h-8 mb-1" />
             Add Schedule Item
           </button>
-          <button onClick={() => onNavigate?.('notes')} className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200">
+          <button onClick={() => onNavigate?.('notes')} className="flex flex-col items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium py-6 px-4 rounded-xl transition duration-200 border border-green-100">
+            <ClipboardList className="w-8 h-8 mb-1" />
             Create Notice
           </button>
-          <button onClick={() => onNavigate?.('editor')} className="bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200">
+          <button onClick={() => onNavigate?.('editor')} className="flex flex-col items-center justify-center gap-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium py-6 px-4 rounded-xl transition duration-200 border border-purple-100">
+            <FileText className="w-8 h-8 mb-1" />
             View Script
           </button>
-          <button onClick={() => onNavigate?.('shot-planning')} className="bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200">
+          <button onClick={() => onNavigate?.('shot-planning')} className="flex flex-col items-center justify-center gap-2 bg-orange-50 hover:bg-orange-100 text-orange-700 font-medium py-6 px-4 rounded-xl transition duration-200 border border-orange-100">
+            <Camera className="w-8 h-8 mb-1" />
             Generate Shots
           </button>
         </div>

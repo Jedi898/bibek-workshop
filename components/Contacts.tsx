@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Contact } from '@/types' // Assuming this type is compatible with the DB schema
+import { Contact } from '@/types/index' // Assuming this type is compatible with the DB schema
 import { useLanguage } from './LanguageContext'
 import { supabase } from '../lib/supabase'
 
@@ -112,7 +112,7 @@ export default function Contacts({ projectId }: ContactsProps) {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Contacts Directory</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Contacts Directory</h2>
         <button
           onClick={() => setIsAdding(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"

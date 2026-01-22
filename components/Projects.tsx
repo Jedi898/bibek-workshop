@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from './LanguageContext'
+import { Folder, Search, Trash2, RotateCcw, XCircle, Clock } from 'lucide-react'
 
 interface Project {
   id: string
@@ -100,17 +101,17 @@ export default function Projects({ onSelectProject }: ProjectsProps) {
 
   return (
     <div className="p-6 h-full overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">{t('My Projects')}</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Folder className="w-6 h-6 text-amber-500" /> {t('My Projects')}</h2>
         <div className="relative">
           <input
             type="text"
             placeholder={t('Search projects...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 w-full sm:w-64"
           />
-          <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
+          <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
         </div>
         <button
           onClick={() => setShowDeleted(!showDeleted)}
@@ -134,32 +135,32 @@ export default function Projects({ onSelectProject }: ProjectsProps) {
             <div
               key={project.id}
               onClick={() => onSelectProject(project.id)}
-              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-all border border-gray-200 relative group"
+              className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md hover:border-amber-300 transition-all border border-gray-200 relative group flex flex-col h-48"
             >
-              <h3 className="text-xl font-bold mb-2 text-gray-900">{project.name}</h3>
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+              <h3 className="text-lg font-bold mb-2 text-gray-900 line-clamp-1">{project.name}</h3>
+              <p className="text-gray-500 text-sm mb-4 line-clamp-3 flex-1">
                 {project.description || t('No description')}
               </p>
-              <div className="text-xs text-gray-500">
-                {new Date(project.created_at).toLocaleDateString()}
+              <div className="text-xs text-gray-400 flex items-center gap-1 mt-auto pt-4 border-t border-gray-100">
+                <Clock className="w-3 h-3" /> {new Date(project.created_at).toLocaleDateString()}
               </div>
               <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                 {showDeleted ? (
                   <>
-                    <button onClick={(e) => handleRestoreProject(e, project.id)} className="text-green-500 hover:text-green-700" title={t('Restore')}>
-                      ♻️
+                    <button onClick={(e) => handleRestoreProject(e, project.id)} className="p-1.5 bg-green-100 text-green-600 rounded-full hover:bg-green-200" title={t('Restore')}>
+                      <RotateCcw className="w-4 h-4" />
                     </button>
-                    <button onClick={(e) => handlePermanentDelete(e, project.id)} className="text-red-500 hover:text-red-700" title={t('Delete Permanently')}>
-                      ❌
+                    <button onClick={(e) => handlePermanentDelete(e, project.id)} className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200" title={t('Delete Permanently')}>
+                      <XCircle className="w-4 h-4" />
                     </button>
                   </>
                 ) : (
                   <button
                     onClick={(e) => handleDeleteProject(e, project.id)}
-                    className="text-gray-400 hover:text-red-500"
+                    className="p-1.5 bg-gray-100 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-500 transition-colors"
                     title={t('Delete Project')}
                   >
-                    🗑️
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>

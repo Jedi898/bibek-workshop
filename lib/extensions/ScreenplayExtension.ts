@@ -10,8 +10,8 @@ export const ScreenplayExtension = Extension.create({
     return {
       type: {
         default: 'action',
-        parseHTML: element => element.getAttribute('data-type') || 'action',
-        renderHTML: attributes => ({
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-type') || 'action',
+        renderHTML: (attributes: Record<string, any>) => ({
           'data-type': attributes.type,
         }),
       },

@@ -181,59 +181,63 @@ export default function ProjectTimeline({ projectId }: TimelineProps) {
       </div>
 
       <div ref={timelineRef} className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-7 gap-4 mb-4 text-center font-bold text-gray-500 border-b pb-2">
-          <div>Day 1</div>
-          <div>Day 2</div>
-          <div>Day 3</div>
-          <div>Day 4</div>
-          <div>Day 5</div>
-          <div>Day 6</div>
-          <div>Day 7</div>
-        </div>
-        
-        <div className="space-y-6">
-          {Array.from({ length: weeks }).map((_, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 gap-4">
-              {Array.from({ length: 7 }).map((_, dayIndex) => {
-                const absoluteDayIndex = weekIndex * 7 + dayIndex
-                if (absoluteDayIndex >= durationDays) return <div key={dayIndex} />
-                
-                const status = getDayStatus(absoluteDayIndex)
-                const currentDate = new Date(startDate)
-                currentDate.setDate(currentDate.getDate() + absoluteDayIndex)
-                const dateStr = currentDate.toISOString().split('T')[0]
-                
-                return (
-                  <div 
-                    key={dayIndex} 
-                    draggable={status !== 'empty'}
-                    onDragStart={(e) => handleDragStart(e, dateStr)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, dateStr)}
-                    className={`
-                      h-24 rounded-lg border p-2 relative transition-all hover:shadow-md
-                      ${status === 'shoot' ? 'bg-green-50 border-green-200' : 
-                        status === 'prep' ? 'bg-blue-50 border-blue-200' : 
-                        'bg-gray-50 border-gray-100'}
-                      ${draggedDate === dateStr ? 'opacity-50 border-dashed' : ''}
-                      ${status !== 'empty' ? 'cursor-move' : 'cursor-default'}
-                    `}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs font-bold text-gray-500">Day {absoluteDayIndex + 1}</span>
-                      <span className="text-[10px] text-gray-400">{currentDate.getDate()}/{currentDate.getMonth() + 1}</span>
-                    </div>
-                    
-                    <div className="mt-2">
-                      {status === 'shoot' && <span className="text-xs bg-green-200 text-green-800 px-1 rounded">Shoot</span>}
-                      {status === 'prep' && <span className="text-xs bg-blue-200 text-blue-800 px-1 rounded">Prep</span>}
-                      {status === 'empty' && <span className="text-xs text-gray-300">Free</span>}
-                    </div>
-                  </div>
-                )
-              })}
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-7 gap-4 mb-4 text-center font-bold text-gray-500 border-b pb-2">
+              <div>Day 1</div>
+              <div>Day 2</div>
+              <div>Day 3</div>
+              <div>Day 4</div>
+              <div>Day 5</div>
+              <div>Day 6</div>
+              <div>Day 7</div>
             </div>
-          ))}
+            
+            <div className="space-y-6">
+              {Array.from({ length: weeks }).map((_, weekIndex) => (
+                <div key={weekIndex} className="grid grid-cols-7 gap-4">
+                  {Array.from({ length: 7 }).map((_, dayIndex) => {
+                    const absoluteDayIndex = weekIndex * 7 + dayIndex
+                    if (absoluteDayIndex >= durationDays) return <div key={dayIndex} />
+                    
+                    const status = getDayStatus(absoluteDayIndex)
+                    const currentDate = new Date(startDate)
+                    currentDate.setDate(currentDate.getDate() + absoluteDayIndex)
+                    const dateStr = currentDate.toISOString().split('T')[0]
+                    
+                    return (
+                      <div 
+                        key={dayIndex} 
+                        draggable={status !== 'empty'}
+                        onDragStart={(e) => handleDragStart(e, dateStr)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, dateStr)}
+                        className={`
+                          h-24 rounded-lg border p-2 relative transition-all hover:shadow-md
+                          ${status === 'shoot' ? 'bg-green-50 border-green-200' : 
+                            status === 'prep' ? 'bg-blue-50 border-blue-200' : 
+                            'bg-gray-50 border-gray-100'}
+                          ${draggedDate === dateStr ? 'opacity-50 border-dashed' : ''}
+                          ${status !== 'empty' ? 'cursor-move' : 'cursor-default'}
+                        `}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-bold text-gray-500">Day {absoluteDayIndex + 1}</span>
+                          <span className="text-[10px] text-gray-400">{currentDate.getDate()}/{currentDate.getMonth() + 1}</span>
+                        </div>
+                        
+                        <div className="mt-2">
+                          {status === 'shoot' && <span className="text-xs bg-green-200 text-green-800 px-1 rounded">Shoot</span>}
+                          {status === 'prep' && <span className="text-xs bg-blue-200 text-blue-800 px-1 rounded">Prep</span>}
+                          {status === 'empty' && <span className="text-xs text-gray-300">Free</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

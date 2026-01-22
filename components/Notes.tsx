@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Note } from '@/types'
+import { Note } from '@/types/index'
 import { supabase } from '../lib/supabase'
 
 interface NotesProps {
@@ -97,7 +97,7 @@ export default function Notes({ projectId }: NotesProps) {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-gray-900">
       <h2 className="text-2xl font-bold mb-6">Production Notes</h2>
       
       <div className="bg-white p-4 rounded-lg shadow mb-8">

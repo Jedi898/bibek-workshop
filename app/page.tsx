@@ -39,6 +39,9 @@ export default function Home() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [projectToDeleteName, setProjectToDeleteName] = useState('')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -48,9 +51,12 @@ export default function Home() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setAuthChecked(true)
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowPasswordReset(true)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -272,6 +278,18 @@ export default function Home() {
     }
   }
 
+  const handlePasswordUpdate = async () => {
+    if (!newPassword) return
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) {
+      alert('Error updating password: ' + error.message)
+    } else {
+      alert('Password updated successfully!')
+      setShowPasswordReset(false)
+      setNewPassword('')
+    }
+  }
+
   const renderActiveComponent = () => {
     if (isScriptLoading) {
       return (
@@ -330,14 +348,23 @@ export default function Home() {
   return (
     <LanguageProvider>
       <div className="min-h-screen bg-gray-100 flex">
+        <button 
+          onClick={() => setIsSidebarOpen(true)} 
+          className="lg:hidden fixed top-4 left-4 z-20 p-2 bg-gray-800 text-white rounded-md shadow-lg"
+          aria-label="Open sidebar"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={(tab: string) => setActiveTab(tab as TabType)} 
           onCreateProject={handleCreateProject}
           onDeleteProject={currentScript ? handleDeleteProject : undefined}
           projectName={currentScript?.title}
+          isMobileOpen={isSidebarOpen}
+          setIsMobileOpen={setIsSidebarOpen}
         />
-        <main className="flex-1 p-8 ml-64">
+        <main className="flex-1 p-4 md:p-8 lg:ml-64">
           <div className="max-w-7xl mx-auto">
             <ErrorBoundary key={activeTab}>
               {renderActiveComponent()}
@@ -377,6 +404,33 @@ export default function Home() {
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
                 >
                   Delete Project
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showPasswordReset && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Reset Password</h3>
+              <p className="text-gray-600 mb-4">
+                Please enter your new password below.
+              </p>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="New Password"
+                autoFocus
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={handlePasswordUpdate}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                >
+                  Update Password
                 </button>
               </div>
             </div>

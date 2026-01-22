@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { FileItem } from '@/types';
+import { FileItem } from '@/types/index';
 import { uploadFile, deleteFile, createFolder } from '@/lib/api/files';
 
 interface FileStorageProps {

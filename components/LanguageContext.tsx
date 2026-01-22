@@ -145,6 +145,22 @@ const translations: Record<string, Record<Language, string>> = {
   'Select a scene to plan shots': { en: 'Select a scene to plan shots', ne: 'शटहरू योजना गर्न दृश्य चयन गर्नुहोस्' },
   'No scenes available': { en: 'No scenes available', ne: 'कुनै दृश्य उपलब्ध छैन' },
 
+  // Shot Planning Alerts & Prompts
+  'Please select a project first.': { en: 'Please select a project first.', ne: 'कृपया पहिले एउटा परियोजना चयन गर्नुहोस्।' },
+  'No saved plans found for this project.': { en: 'No saved plans found for this project.', ne: 'यस परियोजनाको लागि कुनै सुरक्षित योजनाहरू फेला परेनन्।' },
+  'Error loading plans:': { en: 'Error loading plans:', ne: 'योजनाहरू लोड गर्दा त्रुटि:' },
+  'Plan saved successfully!': { en: 'Plan saved successfully!', ne: 'योजना सफलतापूर्वक सुरक्षित भयो!' },
+  'Error saving plan:': { en: 'Error saving plan:', ne: 'योजना सुरक्षित गर्दा त्रुटि:' },
+  'Error loading plan:': { en: 'Error loading plan:', ne: 'योजना लोड गर्दा त्रुटि:' },
+  'Failed to delete plan': { en: 'Failed to delete plan', ne: 'योजना मेटाउन असफल भयो' },
+  'Error updating plan title:': { en: 'Error updating plan title:', ne: 'योजनाको शीर्षक अद्यावधिक गर्दा त्रुटि:' },
+  'Save plan as:': { en: 'Save plan as:', ne: 'योजनालाई यस रूपमा सुरक्षित गर्नुहोस्:' },
+  'Enter new title:': { en: 'Enter new title:', ne: 'नयाँ शीर्षक प्रविष्ट गर्नुहोस्:' },
+  'Are you sure you want to clear the current draft?': { en: 'Are you sure you want to clear the current draft?', ne: 'के तपाईं हालको ड्राफ्ट खाली गर्न निश्चित हुनुहुन्छ?' },
+  'Are you sure you want to delete this plan?': { en: 'Are you sure you want to delete this plan?', ne: 'के तपाईं यो योजना मेटाउन निश्चित हुनुहुन्छ?' },
+  'AI Model is warming up. Please try again in 30 seconds.': { en: 'AI Model is warming up. Please try again in 30 seconds.', ne: 'एआई मोडेल सुरु हुँदैछ। कृपया ३० सेकेन्डमा फेरि प्रयास गर्नुहोस्।' },
+  'Failed to generate shot plan': { en: 'Failed to generate shot plan', ne: 'शट योजना बनाउन असफल भयो' },
+
   // Characters & Locations
   'Name': { en: 'Name', ne: 'नाम' },
   'Role': { en: 'Role', ne: 'भूमिका' },

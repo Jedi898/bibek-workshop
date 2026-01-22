@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ContinuityItem } from '@/types'
+import { ContinuityItem } from '@/types/index'
 
 interface ContinuityStore {
   items: ContinuityItem[]
@@ -15,7 +15,7 @@ export const useContinuityStore = create<ContinuityStore>()(
     (set, get) => ({
       items: [],
       addItem: (itemData) => set((state) => ({
-        items: [...state.items, { ...itemData, id: Date.now().toString() }]
+        items: [...state.items, { ...itemData, id: Date.now().toString() } as ContinuityItem]
       })),
       updateItem: (id, updates) => set((state) => ({
         items: state.items.map((item) => item.id === id ? { ...item, ...updates } : item)

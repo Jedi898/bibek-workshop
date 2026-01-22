@@ -6,6 +6,7 @@ import Link from 'next/link';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { supabase } from '../lib/supabase';
+import { useLanguage } from './LanguageContext';
 
 // Define the Nepali LLM model to use
 const NEPALI_MODEL = 'thenaijapromptengineer/matsya-7b';
@@ -15,6 +16,7 @@ interface ShotPlanningProps {
 }
 
 export default function ShotPlanning({ projectId }: ShotPlanningProps) {
+  const { t } = useLanguage();
   const [sceneText, setSceneText] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('Nepali Film Script');
   const [directorNotes, setDirectorNotes] = useState<string>('');
@@ -69,24 +71,14 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
         }),
       });
 
-      let data;
-      try {
-        const text = await response.text();
-        try {
-          data = JSON.parse(text);
-        } catch {
-          // If parsing fails, use the text as error message if possible or fallback
-          throw new Error(`Invalid JSON response: ${text.substring(0, 50)}...`);
-        }
-      } catch (parseError) {
-        throw new Error(`Server error (${response.status}): ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-      }
+      const data = await response.json();
 
       if (!response.ok) {
+        // Handle specific Hugging Face model loading error
         if (data.error && typeof data.error === 'string' && data.error.includes('loading')) {
-          throw new Error('AI Model is warming up. Please try again in 30 seconds.');
+          throw new Error(t('AI Model is warming up. Please try again in 30 seconds.'));
         }
-        throw new Error(data.error || 'Failed to generate shot plan');
+        throw new Error(data.error || t('Failed to generate shot plan'));
       }
 
       setShotList(data.shotList);
@@ -99,11 +91,11 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
 
   const handleSave = async () => {
     if (!projectId) {
-      alert('Please select a project first.');
+      alert(t('Please select a project first.'));
       return;
     }
 
-    const title = window.prompt('Save plan as:', 'Shot Plan 1');
+    const title = window.prompt(t('Save plan as:'), 'Shot Plan 1');
     if (!title) return;
 
     const planData = {
@@ -126,17 +118,17 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
 
       if (data) {
         setCurrentPlanId(data.id);
-        alert('Plan saved successfully!');
+        alert(t('Plan saved successfully!'));
       }
     } catch (e: any) {
       console.error(e);
-      alert('Error saving plan: ' + e.message);
+      alert(t('Error saving plan:') + ' ' + e.message);
     }
   };
 
   const handleLoad = async () => {
     if (!projectId) {
-      alert('Please select a project first.');
+      alert(t('Please select a project first.'));
       return;
     }
 
@@ -153,11 +145,11 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
         setSavedPlans(data);
         setShowLoadModal(true);
       } else {
-        alert('No saved plans found for this project.');
+        alert(t('No saved plans found for this project.'));
       }
     } catch (e: any) {
       console.error(e);
-      alert('Error loading plans: ' + e.message);
+      alert(t('Error loading plans:') + ' ' + e.message);
     }
   };
 
@@ -181,12 +173,12 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
       }
     } catch (e: any) {
       console.error(e);
-      alert('Error loading plan: ' + e.message);
+      alert(t('Error loading plan:') + ' ' + e.message);
     }
   };
 
   const handleClear = () => {
-    if (window.confirm('Are you sure you want to clear the current draft?')) {
+    if (window.confirm(t('Are you sure you want to clear the current draft?'))) {
       setSceneText('');
       setProjectName('Nepali Film Script');
       setDirectorNotes('');
@@ -199,7 +191,7 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
 
   const handleEditPlanTitle = async (e: React.MouseEvent, id: string, currentTitle: string) => {
     e.stopPropagation();
-    const newTitle = window.prompt('Enter new title:', currentTitle);
+    const newTitle = window.prompt(t('Enter new title:'), currentTitle);
     if (!newTitle || newTitle === currentTitle) return;
 
     try {
@@ -213,16 +205,16 @@ export default function ShotPlanning({ projectId }: ShotPlanningProps) {
       setSavedPlans(savedPlans.map(p => p.id === id ? { ...p, title: newTitle } : p));
     } catch (e: any) {
       console.error(e);
-      alert('Error updating plan title: ' + e.message);
+      alert(t('Error updating plan title:') + ' ' + e.message);
     }
   };
 
   const handleDeletePlan = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this plan?')) {
+    if (window.confirm(t('Are you sure you want to delete this plan?'))) {
       const { error } = await supabase.from('shot_plans').delete().eq('id', id);
       if (error) {
-        alert('Failed to delete plan');
+        alert(t('Failed to delete plan'));
       } else {
         setSavedPlans(savedPlans.filter(p => p.id !== id));
       }

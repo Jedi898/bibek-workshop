@@ -1,4 +1,4 @@
-import { WeatherData, Location } from '@/types';
+import { WeatherData, Location } from '@/types/index';
 
 const WEATHER_API_KEY = process.env.NEXT_PUBLIC_WEATHER_API_KEY;
 const WEATHER_API_URL = 'https://api.weatherapi.com/v1/forecast.json';
@@ -6,6 +6,10 @@ const WEATHER_API_URL = 'https://api.weatherapi.com/v1/forecast.json';
 export class WeatherService {
   static async getForecast(location: Location, date: Date): Promise<WeatherData> {
     try {
+      if (!location.address) {
+        throw new Error('Location address is required');
+      }
+
       const response = await fetch(
         `${WEATHER_API_URL}?key=${WEATHER_API_KEY}&q=${encodeURIComponent(location.address)}&dt=${date.toISOString().split('T')[0]}`
       );
@@ -47,6 +51,10 @@ export class WeatherService {
 
   static async getWeeklyForecast(location: Location): Promise<WeatherData[]> {
     try {
+      if (!location.address) {
+        throw new Error('Location address is required');
+      }
+
       const response = await fetch(
         `${WEATHER_API_URL}?key=${WEATHER_API_KEY}&q=${encodeURIComponent(location.address)}&days=7`
       );
@@ -138,18 +146,19 @@ export class WeatherService {
 
   private static getMockForecast(location: Location, date: Date): WeatherData {
     // Mock data for development/testing
+    const d = new Date(date);
     return {
-      date,
+      date: new Date(date),
       locationId: location.id,
       temperature: 22,
       condition: 'Partly cloudy',
       precipitation: 10,
       humidity: 65,
       windSpeed: 15,
-      sunrise: new Date(date.setHours(6, 30, 0)),
-      sunset: new Date(date.setHours(18, 45, 0)),
-      goldenHourAM: new Date(date.setHours(7, 30, 0)),
-      goldenHourPM: new Date(date.setHours(17, 45, 0))
+      sunrise: new Date(new Date(d).setHours(6, 30, 0)),
+      sunset: new Date(new Date(d).setHours(18, 45, 0)),
+      goldenHourAM: new Date(new Date(d).setHours(7, 30, 0)),
+      goldenHourPM: new Date(new Date(d).setHours(17, 45, 0))
     };
   }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Location } from '@/types'
+import { Location } from '@/types/index'
 
 interface LocationStore {
   locations: Location[]
@@ -15,7 +15,7 @@ export const useLocationStore = create<LocationStore>()(
     (set, get) => ({
       locations: [],
       addLocation: (locData) => set((state) => ({
-        locations: [...state.locations, { ...locData, id: Math.random().toString(36).substring(2, 9) }]
+        locations: [...state.locations, { ...locData, id: Math.random().toString(36).substring(2, 9) } as Location]
       })),
       updateLocation: (id, updates) => set((state) => ({
         locations: state.locations.map((l) => l.id === id ? { ...l, ...updates } : l)

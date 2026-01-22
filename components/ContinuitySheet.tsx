@@ -250,7 +250,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
   }
 
   return (
-    <div className="p-6 text-white h-full overflow-y-auto">
+    <div className="p-6 text-gray-900 h-full overflow-y-auto">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-bold">{t('Continuity Sheet')}</h2>
@@ -314,7 +314,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500 text-white"
             />
           </div>
           <div>
@@ -323,7 +323,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
               type="time"
               value={firstTakeTime}
               onChange={(e) => setFirstTakeTime(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500 text-white"
             />
           </div>
           <div>
@@ -332,7 +332,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
               type="time"
               value={packUpTime}
               onChange={(e) => setPackUpTime(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500 text-white"
             />
           </div>
         </div>
@@ -360,7 +360,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.sceneNo}
                     onChange={(e) => handleChange(row.id, 'sceneNo', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2">
@@ -368,7 +368,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.shot}
                     onChange={(e) => handleChange(row.id, 'shot', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2">
@@ -376,7 +376,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.take}
                     onChange={(e) => handleChange(row.id, 'take', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2">
@@ -384,7 +384,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.soundNo}
                     onChange={(e) => handleChange(row.id, 'soundNo', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2">
@@ -392,7 +392,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.fileNo}
                     onChange={(e) => handleChange(row.id, 'fileNo', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2">
@@ -400,7 +400,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.description}
                     onChange={(e) => handleChange(row.id, 'description', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2">
@@ -408,7 +408,7 @@ const ContinuitySheet = ({ projectId }: ContinuitySheetProps) => {
                     type="text"
                     value={row.remarks}
                     onChange={(e) => handleChange(row.id, 'remarks', e.target.value)}
-                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                    className="w-full bg-transparent border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none text-sm text-white"
                   />
                 </td>
                 <td className="p-2 text-center">

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Script } from '@/types'
+import { Script } from '@/types/index'
 
 interface ScriptStore {
   scripts: Script[]
@@ -20,6 +20,7 @@ export const useScriptStore = create<ScriptStore>()(
       addScript: (scriptData) => {
         const newScript: Script = {
           projectId: 'default',
+          project_id: scriptData.projectId || 'default',
           createdBy: 'user',
           ...scriptData,
           id: Math.random().toString(36).substring(2, 9),

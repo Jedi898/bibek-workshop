@@ -16,6 +16,15 @@ export interface CalendarEvent {
 export interface Character {
   id: string;
   name: string;
+  role?: string;
+  description?: string;
+  photo?: string;
+  actorId?: string;
+  traits?: string[];
+  scenes?: string[];
+  projectId?: string;
+  scriptId?: string;
+  [key: string]: any;
 }
 
 // Contact interface for directory
@@ -55,6 +64,8 @@ export interface FileItem {
   uploadedAt?: Date;
   mimeType?: string;
   url?: string;
+  projectId?: string;
+  uploadedBy?: string;
 }
 
 export interface User {
@@ -77,4 +88,14 @@ export interface Note {
   referenceId?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface Script {
+  id: string;
+  title: string;
+  content: string;
+  version: string | number;
+  updatedAt: string;
+  projectId?: string;
+  project_id?: string;
 }

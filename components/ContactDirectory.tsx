@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Contact } from '../types';
+import { Contact } from '@/types/index';
 
 interface ContactDirectoryProps {
   contacts: Contact[];
