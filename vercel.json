@@ -1,27 +1,8 @@
 {
-  "functions": {
-    "app/api/**/*.js": {
-      "maxDuration": 60
-    },
-    "app/api/**/*.ts": {
-      "maxDuration": 60
-    }
-  },
-  "env": {
-    "GOOGLE_GENERATIVE_AI_API_KEY": "@google_generative_ai_api_key",
-    "HUGGINGFACE_API_KEY": "@huggingface_api_key",
-    "UPSTASH_REDIS_REST_URL": "@upstash_redis_rest_url",
-    "UPSTASH_REDIS_REST_TOKEN": "@upstash_redis_rest_token"
-  },
-  "headers": [
+  "crons": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        }
-      ]
+      "path": "/api/cron/keep-alive",
+      "schedule": "0 0 */3 * *"
     }
   ]
 }
